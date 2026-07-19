@@ -1,0 +1,140 @@
+{
+  "harness": "codex",
+  "generated_from_version": "0.144.1",
+  "record_types": {
+    "event_msg": {
+      "keys": [
+        "payload",
+        "payload.action",
+        "payload.call_id",
+        "payload.changes",
+        "payload.collaboration_mode_kind",
+        "payload.completed_at",
+        "payload.duration_ms",
+        "payload.images",
+        "payload.info",
+        "payload.last_agent_message",
+        "payload.local_images",
+        "payload.memory_citation",
+        "payload.message",
+        "payload.model_context_window",
+        "payload.phase",
+        "payload.query",
+        "payload.rate_limits",
+        "payload.started_at",
+        "payload.status",
+        "payload.stderr",
+        "payload.stdout",
+        "payload.success",
+        "payload.text_elements",
+        "payload.time_to_first_token_ms",
+        "payload.turn_id",
+        "payload.type",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "payload.type": [
+          "agent_message",
+          "patch_apply_end",
+          "task_complete",
+          "task_started",
+          "token_count",
+          "user_message",
+          "web_search_end"
+        ]
+      }
+    },
+    "response_item": {
+      "keys": [
+        "payload",
+        "payload.action",
+        "payload.call_id",
+        "payload.content",
+        "payload.encrypted_content",
+        "payload.id",
+        "payload.input",
+        "payload.internal_chat_message_metadata_passthrough",
+        "payload.name",
+        "payload.output",
+        "payload.phase",
+        "payload.role",
+        "payload.status",
+        "payload.summary",
+        "payload.type",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "payload.name": [
+          "exec"
+        ],
+        "payload.type": [
+          "custom_tool_call",
+          "custom_tool_call_output",
+          "message",
+          "reasoning",
+          "web_search_call"
+        ]
+      }
+    },
+    "session_meta": {
+      "keys": [
+        "payload",
+        "payload.base_instructions",
+        "payload.cli_version",
+        "payload.context_window",
+        "payload.cwd",
+        "payload.dynamic_tools",
+        "payload.git",
+        "payload.history_mode",
+        "payload.id",
+        "payload.model_provider",
+        "payload.originator",
+        "payload.session_id",
+        "payload.source",
+        "payload.thread_source",
+        "payload.timestamp",
+        "timestamp",
+        "type"
+      ]
+    },
+    "turn_context": {
+      "keys": [
+        "payload",
+        "payload.approval_policy",
+        "payload.approvals_reviewer",
+        "payload.collaboration_mode",
+        "payload.comp_hash",
+        "payload.current_date",
+        "payload.cwd",
+        "payload.developer_instructions",
+        "payload.effort",
+        "payload.file_system_sandbox_policy",
+        "payload.model",
+        "payload.multi_agent_mode",
+        "payload.multi_agent_version",
+        "payload.permission_profile",
+        "payload.personality",
+        "payload.realtime_active",
+        "payload.sandbox_policy",
+        "payload.summary",
+        "payload.timezone",
+        "payload.truncation_policy",
+        "payload.turn_id",
+        "payload.workspace_roots",
+        "timestamp",
+        "type"
+      ]
+    },
+    "world_state": {
+      "keys": [
+        "payload",
+        "payload.full",
+        "payload.state",
+        "timestamp",
+        "type"
+      ]
+    }
+  }
+}

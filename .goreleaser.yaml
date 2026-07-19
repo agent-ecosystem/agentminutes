@@ -1,0 +1,46 @@
+version: 2
+
+release:
+  github:
+    owner: agent-ecosystem
+    name: agentminutes
+
+# goreleaser's default ldflags stamp main.version with the tag, so
+# `agentminutes --version` reports the release without a hardcoded
+# constant to bump.
+builds:
+  - binary: agentminutes
+    main: ./cmd/agentminutes
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+# brews is deprecated upstream in favor of homebrew_casks, but casks are
+# macOS-only and get Gatekeeper quarantine on unsigned binaries; a formula
+# also works on Linux Homebrew and matches the tap's existing Formula/
+# layout (skill-validator). Revisit if goreleaser v2 drops it.
+brews:
+  - directory: Formula
+    repository:
+      owner: agent-ecosystem
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/agent-ecosystem/agentminutes
+    description: Parse agent harness session logs (Antigravity CLI, Claude Code, Codex CLI) into a unified event schema
+    license: MIT
+    install: |
+      bin.install "agentminutes"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/agentminutes --version")

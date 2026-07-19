@@ -1,0 +1,7 @@
+# Keep text files LF everywhere so Windows checkouts (core.autocrlf) don't
+# rewrite test fixtures or Go sources; the JSONL golden fixtures in
+# particular must be byte-stable across platforms.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary

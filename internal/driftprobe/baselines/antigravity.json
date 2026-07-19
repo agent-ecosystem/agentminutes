@@ -1,0 +1,248 @@
+{
+  "harness": "antigravity",
+  "generated_from_version": "1.1.3",
+  "record_types": {
+    "ASK_QUESTION": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "CHECKPOINT": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "SYSTEM"
+        ]
+      }
+    },
+    "CODE_ACTION": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "CONVERSATION_HISTORY": {
+      "keys": [
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "SYSTEM"
+        ]
+      }
+    },
+    "ERROR_MESSAGE": {
+      "keys": [
+        "content",
+        "created_at",
+        "error",
+        "error_code",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "SYSTEM"
+        ]
+      }
+    },
+    "GENERIC": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "GREP_SEARCH": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "LIST_DIRECTORY": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "PLANNER_RESPONSE": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "thinking",
+        "tool_calls",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ],
+        "tool_calls[].name": [
+          "ask_question",
+          "command_status",
+          "grep_search",
+          "list_dir",
+          "list_permissions",
+          "manage_subagents",
+          "manage_task",
+          "read_url_content",
+          "run_command",
+          "search_web",
+          "view_file",
+          "write_to_file"
+        ]
+      }
+    },
+    "READ_URL_CONTENT": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "RUN_COMMAND": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "SEARCH_WEB": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    },
+    "SYSTEM_MESSAGE": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "SYSTEM"
+        ]
+      }
+    },
+    "USER_INPUT": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "USER_EXPLICIT"
+        ]
+      }
+    },
+    "VIEW_FILE": {
+      "keys": [
+        "content",
+        "created_at",
+        "source",
+        "status",
+        "step_index",
+        "type"
+      ],
+      "discriminators": {
+        "source": [
+          "MODEL"
+        ]
+      }
+    }
+  }
+}

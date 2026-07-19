@@ -1,0 +1,9 @@
+# JetBrains IDE files
+.idea/
+
+# Binary (root-level build output only; /cmd/agentminutes is source)
+/agentminutes
+/bin/
+
+# Test reports
+coverage.out
