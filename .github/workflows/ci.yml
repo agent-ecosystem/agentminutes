@@ -35,3 +35,18 @@ jobs:
 
       - name: Build
         run: go build ./...
+
+  wrappers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: npm wrapper tests
+        run: npm test --prefix wrappers/npm
+
+      - name: PyPI wrapper tests
+        run: python3 -m unittest discover -s wrappers/pypi/tests

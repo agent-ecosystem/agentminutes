@@ -1,6 +1,6 @@
 # Next steps
 
-Status: the library is feature-complete for a v0.1.0: schema, three adapters (Antigravity, Claude Code, Codex) with empirical inventories, facade with auto-detection, CLI (`convert`/`detect`/`stats`), `session.Stats()`, and the `acp` projection with loss report. Everything sits uncommitted in the working tree pending first publication.
+Status: v0.1.0 is published — GitHub repo with green CI, tagged release with prebuilt binaries, Homebrew tap formula, and npm/PyPI name-reservation stubs (see the checklist below). The library ships the full v0.1.0 surface: schema, three adapters (Antigravity, Claude Code, Codex) with empirical inventories, facade with auto-detection, session discovery, CLI (`convert`/`detect`/`drift`/`sessions`/`stats`), `session.Stats()`, and the `acp` projection with loss report.
 
 Session discovery (**built**): `harness.Locator` + per-adapter `locate.go`, facade `Scan`/`Locate`/`LocatorFor`, and `agentminutes sessions`, so consumers can isolate the transcripts belonging to one project or experiment (by cwd, session ID, or time window) instead of parsing whole harness roots. Design and implementation deltas: `session-discovery.md`. Validated against all three real local corpora with the per-file accounting invariant (`internal/locatetest`, env-gated `TestLocalScan` per adapter).
 
@@ -10,14 +10,16 @@ Pre-release quality pass (**done**): a full-codebase audit ahead of v0.1.0. Corr
 
 ## First-commit checklist
 
+All complete; v0.1.0 is published. Kept for the record.
+
 1. **Done.** Publish the sibling `github.com/agent-ecosystem/agentsummons` first (it has no dependencies): create its repo, push, verify its CI, tag its v0.1.0.
-2. Create `github.com/agent-ecosystem/agentminutes` (module path is already baked in; see registration.md for the decision record). Optionally claim the `agentminutes` GitHub org defensively per registration.md.
+2. **Done.** Create `github.com/agent-ecosystem/agentminutes` (module path is already baked in; see registration.md for the decision record). Optionally claim the `agentminutes` GitHub org defensively per registration.md (still open, optional).
 3. **Done.** Drop the `replace github.com/agent-ecosystem/agentsummons => ../agentsummons` directive in `go.mod` and require the published tag (v0.1.0) instead — CI checkouts and `go install` cannot resolve a sibling-directory replace.
-4. Initial commit(s) of the working tree; suggested split: scaffolding, session+harness packages, adapters (one each), facade+CLI, acp+stats, docs.
-5. Verify CI goes green on GitHub (lint + ubuntu/windows test matrix already configured in `.github/workflows/ci.yml`).
-6. Tag v0.1.0 when ready; add goreleaser config (model on skill-validator's, add windows targets) and a Homebrew tap later per registration.md.
-7. npm + PyPI stub packages per registration.md (honest stubs, not empty squats).
-8. Re-verify name availability immediately before each registration (commands in registration.md).
+4. **Done.** Initial commit of the working tree.
+5. **Done.** CI green on GitHub (lint + ubuntu/windows test matrix in `.github/workflows/ci.yml`).
+6. **Done.** Tagged v0.1.0; the goreleaser config (modeled on skill-validator's, with windows targets) and the Homebrew tap formula shipped with the release rather than later: pushing a `v*` tag runs `.github/workflows/release.yml`, which builds six platform archives and pushes the formula to `agent-ecosystem/homebrew-tap` (needs the `HOMEBREW_TAP_TOKEN` repo secret).
+7. **Done, then superseded.** The 0.0.1 name-reservation stubs were published per registration.md, then replaced the same day by real 0.1.0 wrappers: npm gets an `agentminutes` launcher with six platform binary packages via optionalDependencies (esbuild pattern), PyPI gets six platform-tagged wheels bundling the binary as the `agentminutes` console script. Sources in `wrappers/` (structure unified with agentsummons': checked-in package sources with fake-binary tests, `npm/scripts/build-packages.mjs` + `pypi/build_wheels.py` assemblers), published on tag push by the release workflow's decoupled publish-npm/publish-pypi jobs via registry trusted publishing (OIDC, no token secrets; each package needs its trusted publisher configured on npmjs.com / pypi.org).
+8. **Done.** Name availability re-verified immediately before each registration.
 
 ## Open verification items (by harness)
 

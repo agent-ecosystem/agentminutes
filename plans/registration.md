@@ -9,10 +9,10 @@ Availability was verified at decision time (all registries below were free, zero
 | Namespace | Status | Priority |
 | --- | --- | --- |
 | agentminutes.dev | Registered | Done |
-| GitHub repo (and optionally org) | Not yet claimed | High: this is the Go module path |
-| npm | Not yet claimed | High |
-| PyPI | Not yet claimed | High |
-| Homebrew | Cannot pre-reserve; comes with first release | N/A |
+| GitHub repo (and optionally org) | Registered: `agent-ecosystem/agentminutes` (defensive `agentminutes` org claim still optional) | Done |
+| npm | Real wrapper: `agentminutes@0.1.0` launcher + six `agentminutes-<platform>-<arch>` binary packages | Done |
+| PyPI | Real wrapper: `agentminutes 0.1.0`, six platform wheels bundling the binary | Done |
+| Homebrew | Formula in `agent-ecosystem/homebrew-tap`, published by the v0.1.0 release pipeline | Done |
 | crates.io / RubyGems | Skipping (see notes) | Low |
 
 ## 1. GitHub

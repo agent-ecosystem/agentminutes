@@ -27,3 +27,71 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  # The npm and PyPI wrappers repackage the archives goreleaser just
+  # uploaded, so wrapper versions can never drift from the Go release.
+  # Both publish via registry trusted publishing (OIDC): each package has
+  # this repo + workflow configured as a trusted publisher on npmjs.com /
+  # pypi.org, and no registry token secrets exist.
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing + --provenance
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Download release archives
+        run: gh release download "$GITHUB_REF_NAME" --dir assets --pattern '*.tar.gz' --pattern '*.zip'
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Test wrapper
+        run: npm test --prefix wrappers/npm
+
+      - name: Assemble packages
+        run: node wrappers/npm/scripts/build-packages.mjs --version "${GITHUB_REF_NAME#v}" --assets assets --out dist-npm
+
+      - name: Publish (platform packages before the main package)
+        run: |
+          for pkg in dist-npm/platform/*/; do
+            npm publish "$pkg" --access public --provenance
+          done
+          npm publish dist-npm/agentminutes --access public --provenance
+
+  publish-pypi:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download release archives
+        run: gh release download "$GITHUB_REF_NAME" --dir assets --pattern '*.tar.gz' --pattern '*.zip'
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Test wrapper and build platform wheels
+        run: |
+          pip install build wheel
+          python -m unittest discover -s wrappers/pypi/tests
+          python wrappers/pypi/build_wheels.py --version "${GITHUB_REF_NAME#v}" --assets assets --out wheelhouse
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: wheelhouse

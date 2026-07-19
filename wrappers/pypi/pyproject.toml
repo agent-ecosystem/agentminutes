@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentminutes"
+# Placeholder: build_wheels.py stamps the release version into a temp copy.
+version = "0.0.0"
+description = "Parses agent harness session logs into a unified event schema. Python wrapper around the agentminutes Go CLI."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Dachary Carey" }]
+requires-python = ">=3.9"
+keywords = ["agent", "harness", "session-logs", "transcripts", "claude-code", "codex", "antigravity", "parser"]
+
+[project.urls]
+Homepage = "https://agentminutes.dev"
+Repository = "https://github.com/agent-ecosystem/agentminutes"
+Issues = "https://github.com/agent-ecosystem/agentminutes/issues"
+
+[project.scripts]
+agentminutes = "agentminutes:_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agentminutes = ["bin/*"]

@@ -7,3 +7,13 @@
 
 # Test reports
 coverage.out
+
+# Wrapper build/test output
+__pycache__/
+/wrappers/npm/node_modules/
+/wrappers/npm/*.tgz
+/wrappers/pypi/.venv/
+/wrappers/pypi/dist/
+/wrappers/pypi/src/*.egg-info/
+/dist-npm/
+/wheelhouse/

@@ -24,10 +24,16 @@ CLI:
 ```bash
 brew install agent-ecosystem/tap/agentminutes
 # or
+npm install -g agentminutes
+# or
+pip install agentminutes
+# or
 go install github.com/agent-ecosystem/agentminutes/cmd/agentminutes@latest
 ```
 
-Prebuilt static binaries (darwin/linux/windows) are on the
+The npm and pip packages wrap the same prebuilt Go binary (macOS, Linux,
+and Windows on x64/arm64); nothing extra is downloaded at install time.
+Prebuilt static binaries are also on the
 [releases page](https://github.com/agent-ecosystem/agentminutes/releases).
 
 Library:

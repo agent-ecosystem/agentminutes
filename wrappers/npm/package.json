@@ -1,0 +1,46 @@
+{
+  "name": "agentminutes",
+  "version": "0.0.0",
+  "description": "Parses agent harness session logs into a unified event schema. Node wrapper around the agentminutes Go CLI.",
+  "main": "lib/index.js",
+  "bin": {
+    "agentminutes": "bin/agentminutes.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "keywords": [
+    "agent",
+    "harness",
+    "session-logs",
+    "transcripts",
+    "claude-code",
+    "codex",
+    "antigravity",
+    "parser"
+  ],
+  "author": "Dachary Carey",
+  "license": "MIT",
+  "homepage": "https://agentminutes.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-ecosystem/agentminutes.git",
+    "directory": "wrappers/npm"
+  },
+  "bugs": "https://github.com/agent-ecosystem/agentminutes/issues",
+  "optionalDependencies": {
+    "agentminutes-darwin-arm64": "0.0.0",
+    "agentminutes-darwin-x64": "0.0.0",
+    "agentminutes-linux-arm64": "0.0.0",
+    "agentminutes-linux-x64": "0.0.0",
+    "agentminutes-win32-arm64": "0.0.0",
+    "agentminutes-win32-x64": "0.0.0"
+  }
+}
