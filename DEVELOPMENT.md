@@ -183,4 +183,6 @@ CI tests on windows-latest, and these rules keep it green: `.gitattributes` forc
 
 ## Releases
 
-Not yet set up. When releases begin: goreleaser config modeled on skill-validator's, including windows targets; the `version` variable in `cmd/agentminutes/main.go` is the stamp point; pkg.go.dev indexes automatically on the first fetched tag.
+Pushing a `v*` tag runs the release workflow: goreleaser (GitHub release, Homebrew tap), then npm and PyPI wrappers repackaging the release archives, versions stamped from the tag (see `wrappers/`). The `version` variable in `cmd/agentminutes/main.go` is the stamp point.
+
+Before tagging: agentsummons releases first (this repo depends on it for probe invocation — bump the `go.mod` dependency to its fresh tag), then run `drift probe` against any harnesses `harness.LastValidated` trails and reconcile per the drift-devtool section above.

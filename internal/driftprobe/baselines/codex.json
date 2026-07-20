@@ -1,6 +1,6 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.144.1",
+  "generated_from_version": "0.144.6",
   "record_types": {
     "event_msg": {
       "keys": [
@@ -27,6 +27,7 @@
         "payload.stdout",
         "payload.success",
         "payload.text_elements",
+        "payload.thread_settings",
         "payload.time_to_first_token_ms",
         "payload.turn_id",
         "payload.type",
@@ -39,6 +40,7 @@
           "patch_apply_end",
           "task_complete",
           "task_started",
+          "thread_settings_applied",
           "token_count",
           "user_message",
           "web_search_end"

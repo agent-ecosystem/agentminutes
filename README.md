@@ -15,7 +15,7 @@ Early development, pre-release. The normalized schema is versioned (currently `0
 | Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
 | Gemini CLI (classic) | Not planned | Retired for individual users June 2026; Antigravity is its successor |
 
-Adapters are validated against real transcripts (Antigravity 1.1.1 through 1.1.3; Claude Code 2.1.153 through 2.1.204; Codex 0.118 and 0.144) with a mechanical line-accounting check: every source line becomes an event, a counted skip, or an error. See [Design notes](#design-notes) for why that matters. Antigravity and Codex coverage is thinner than Claude Code's (fewer local transcripts) and both formats drift quickly between releases; see the inventories under `plans/` for what is verified vs. implemented from documented shapes. Antigravity transcripts carry no token usage, and their tool calls have no correlation IDs (the adapter synthesizes step-derived IDs and pairs positionally).
+Adapters are validated against real transcripts (Antigravity 1.1.1 through 1.1.4; Claude Code 2.1.153 through 2.1.205; Codex 0.118 and 0.144 through 0.144.6) with a mechanical line-accounting check: every source line becomes an event, a counted skip, or an error. See [Design notes](#design-notes) for why that matters. Antigravity and Codex coverage is thinner than Claude Code's (fewer local transcripts) and both formats drift quickly between releases; see the inventories under `plans/` for what is verified vs. implemented from documented shapes. Antigravity transcripts carry no token usage, and their tool calls have no correlation IDs (the adapter synthesizes step-derived IDs and pairs positionally).
 
 ## Install
 
@@ -87,10 +87,10 @@ Summarize a session's behavior (tool mix, bytes retrieved, latency, tokens, obse
 agentminutes stats session.jsonl
 ```
 
-The summary's `system_by_subtype` counts surface actions a harness records only as telemetry (Codex 0.144 logs URL fetches solely as `web_search_end` events, so they appear there rather than as tool calls). To count them as tool calls, opt into the promotion — `--promote` works on `stats` as well as `convert`:
+The summary's `system_by_subtype` counts surface actions a harness records only as telemetry (Codex 0.144 logs URL fetches solely as `web_search_end` events, and 0.144.6 records file edits solely as `patch_apply_end`, so they appear there rather than as tool calls). To count them as tool calls, opt into the promotions — `--promote` works on `stats` as well as `convert`:
 
 ```bash
-agentminutes stats --promote codex:web-search rollout.jsonl
+agentminutes stats --promote codex:web-search --promote codex:patch-apply rollout.jsonl
 ```
 
 If a parse fails or the output looks wrong, check whether the transcript's format has drifted past what this build was validated against (free; nothing is invoked):
@@ -110,7 +110,7 @@ Useful flags for `convert`:
 - `--permissive` (also on `stats`) preserves unclassifiable records as `unknown` events instead of failing the parse.
 - `--keep-raw` retains the verbatim native records in each event's provenance.
 - `--max-payload-bytes N` replaces tool-result payloads larger than N with size-and-digest placeholders.
-- `--promote codex:web-search` (also on `stats`) opts into a telemetry promotion: some harness versions record an action only as telemetry (Codex 0.144+ logs URL fetches solely as `web_search_end` events), and promotion synthesizes the corresponding `tool_call`/`tool_result` pair so tool metrics see it. Never on by default because versions that also record the action natively would double-count; synthesized events carry `promoted_from` so they stay auditable.
+- `--promote codex:web-search` / `--promote codex:patch-apply` (also on `stats`) opt into a telemetry promotion: some harness versions record an action only as telemetry (Codex 0.144+ logs URL fetches solely as `web_search_end` events, and 0.144.6 records file edits solely as `patch_apply_end`), and promotion synthesizes the corresponding `tool_call`/`tool_result` pair so tool metrics see it. Never on by default because versions that also record the action natively would double-count; synthesized events carry `promoted_from` so they stay auditable.
 - `-o out.json` (also on `stats`) writes to a file; passing `-` as the transcript reads stdin.
 
 ## Library usage
@@ -171,7 +171,7 @@ for ev, err := range a.Events(f, harness.Options{}) {
 
 The first event of every stream is `session_meta`, so streaming consumers know what they are reading before EOF. `session.Accumulator` bridges the two modes: feed it events, ask it for the accumulated `Session` (this is exactly what `Parse` does).
 
-Optional post-parse policies compose as `session.Transform` functions, applied in order by `Parse` or wrapped around `Events` directly. Adapters translate; transforms reshape, and only when asked. The exported telemetry promotions (currently `codex.PromoteWebSearch`) are the canonical transforms:
+Optional post-parse policies compose as `session.Transform` functions, applied in order by `Parse` or wrapped around `Events` directly. Adapters translate; transforms reshape, and only when asked. The exported telemetry promotions (currently `codex.PromotePatchApply` and `codex.PromoteWebSearch`) are the canonical transforms:
 
 ```go
 s, err := harness.Parse(codex.Adapter{}, f, harness.Options{}, codex.PromoteWebSearch)

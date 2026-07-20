@@ -18,7 +18,8 @@ var promotions = map[string]struct {
 	Harness   harness.ID
 	Transform session.Transform
 }{
-	"codex:web-search": {harness.Codex, codex.PromoteWebSearch},
+	"codex:patch-apply": {harness.Codex, codex.PromotePatchApply},
+	"codex:web-search":  {harness.Codex, codex.PromoteWebSearch},
 }
 
 // promoteFlagHelp lists the known promotion names for flag help.

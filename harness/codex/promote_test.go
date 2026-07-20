@@ -111,6 +111,111 @@ func TestPromoteWebSearchFallbackID(t *testing.T) {
 	}
 }
 
+// patchApplyEndLine is the shape observed via drift probe on 0.144.6:
+// apply_patch rides inside the unified exec tool, so this telemetry is the
+// only structured record of a file edit on that version.
+const patchApplyEndLine = `{"timestamp":"2026-07-20T03:03:01.517Z","type":"event_msg","payload":{"type":"patch_apply_end","call_id":"exec-223d","turn_id":"turn-1","stdout":"Success. Updated the following files:\nA probe.txt\n","stderr":"","success":true,"changes":{"/tmp/probe.txt":{"type":"add","content":"drift probe\n"}},"status":"completed"}}`
+
+func TestPromotePatchApply(t *testing.T) {
+	input := `{"timestamp":"2026-07-20T03:03:00.000Z","type":"session_meta","payload":{"session_id":"s","cli_version":"0.144.6","cwd":"/tmp"}}` + "\n" +
+		patchApplyEndLine + "\n"
+
+	// Without the transform: telemetry stays a system event.
+	s, err := harness.Parse(Adapter{}, strings.NewReader(input), harness.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.ToolInteractions()) != 0 {
+		t.Fatalf("without transform: %d tool interactions, want 0", len(s.ToolInteractions()))
+	}
+
+	// With the transform: a synthesized, marked edit pair replaces it.
+	var skips []int
+	s, err = harness.Parse(Adapter{}, strings.NewReader(input), harness.Options{
+		OnSkip: func(line int, _ string) { skips = append(skips, line) },
+	}, PromotePatchApply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ti := s.ToolInteractions()
+	if len(ti) != 1 || ti[0].Call == nil || len(ti[0].Results) != 1 {
+		t.Fatalf("with transform: interactions = %+v, want one complete pair", ti)
+	}
+	call, result := ti[0].Call.ToolCall, ti[0].Results[0].ToolResult
+	if call.ToolCallID != "exec-223d" || call.Name != "apply_patch" || call.Kind != session.ToolKindEdit {
+		t.Errorf("call = %+v", call)
+	}
+	if call.PromotedFrom != "event_msg/patch_apply_end" || result.PromotedFrom != "event_msg/patch_apply_end" {
+		t.Errorf("promoted_from = %q / %q, want the marker on both", call.PromotedFrom, result.PromotedFrom)
+	}
+	if !strings.Contains(string(call.Input), "/tmp/probe.txt") {
+		t.Errorf("call input = %s, want the changes map", call.Input)
+	}
+	if result.IsError {
+		t.Error("success:true must not mark the result as an error")
+	}
+	if len(result.Enrichment) == 0 {
+		t.Error("want the verbatim payload in enrichment")
+	}
+	for i := range s.Events {
+		if s.Events[i].Kind == session.KindSystem && s.Events[i].System.Subtype == "patch_apply_end" {
+			t.Error("promotion must replace the system event, not duplicate it")
+		}
+	}
+
+	// Line accounting holds: the synthesized pair carries the source
+	// event's provenance.
+	if un := parseutil.UncoveredLines([]byte(input), s.Events, skips); un != nil {
+		t.Errorf("uncovered lines with transform: %v", un)
+	}
+}
+
+// TestPromotePatchApplyDoubleCountAuditable pins the safety story: on a
+// transcript carrying both a native apply_patch tool call and the
+// telemetry, promotion double-counts, and the marker is what lets a
+// consumer drop the promoted pair.
+func TestPromotePatchApplyDoubleCountAuditable(t *testing.T) {
+	input := `{"timestamp":"2026-07-20T03:03:00.000Z","type":"session_meta","payload":{"session_id":"s","cli_version":"0.144.6","cwd":"/tmp"}}` + "\n" +
+		`{"timestamp":"2026-07-20T03:03:01.000Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"call-1","name":"apply_patch","input":"*** Begin Patch\n*** End Patch"}}` + "\n" +
+		patchApplyEndLine + "\n"
+
+	s, err := harness.Parse(Adapter{}, strings.NewReader(input), harness.Options{}, PromotePatchApply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ti := s.ToolInteractions()
+	if len(ti) != 2 {
+		t.Fatalf("interactions = %d, want 2 (the double count)", len(ti))
+	}
+	var native, promoted int
+	for _, i := range ti {
+		if i.Call.ToolCall.PromotedFrom == "" {
+			native++
+		} else {
+			promoted++
+		}
+	}
+	if native != 1 || promoted != 1 {
+		t.Errorf("native/promoted = %d/%d, want the marker to distinguish exactly one of each", native, promoted)
+	}
+}
+
+func TestPromotePatchApplyFailure(t *testing.T) {
+	input := `{"timestamp":"2026-07-20T03:03:00.000Z","type":"session_meta","payload":{"session_id":"s","cli_version":"0.144.6","cwd":"/tmp"}}` + "\n" +
+		`{"timestamp":"2026-07-20T03:03:01.000Z","type":"event_msg","payload":{"type":"patch_apply_end","stderr":"conflict","success":false,"status":"failed"}}` + "\n"
+	s, err := harness.Parse(Adapter{}, strings.NewReader(input), harness.Options{}, PromotePatchApply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ti := s.ToolInteractions()
+	if len(ti) != 1 || !ti[0].Results[0].ToolResult.IsError {
+		t.Fatalf("interactions = %+v, want a failed pair", ti)
+	}
+	if ti[0].Call.ToolCall.ToolCallID != "patch_apply_end:L2" {
+		t.Fatalf("id = %q, want line-derived ID without call_id", ti[0].Call.ToolCall.ToolCallID)
+	}
+}
+
 func TestPromoteWebSearchErrorPassthrough(t *testing.T) {
 	input := `{"timestamp":"2026-07-19T22:00:00.000Z","type":"session_meta","payload":{"session_id":"s","cli_version":"0.144.1","cwd":"/tmp"}}` + "\n" +
 		`not json` + "\n"
