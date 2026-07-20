@@ -14,13 +14,18 @@ import { fileURLToPath } from "node:url";
 
 // Node platform key → goreleaser artifact identity. Mirrors SUPPORTED in
 // lib/binary.js; both move together with .goreleaser.yaml's build matrix.
+// win32-x64 is temporarily absent: npm's registry blocks creating the
+// agentminutes-win32-x64 package name (support ticket open), so the
+// publish job would fail on it, and stricter installers hard-fail on an
+// optionalDependency that 404s. When npm frees the name, restore
+// win32-x64 here, in SUPPORTED, and in package.json's
+// optionalDependencies.
 const PLATFORMS = [
   { key: "darwin-arm64", os: "darwin", cpu: "arm64", artifact: "darwin_arm64", ext: "tar.gz" },
   { key: "darwin-x64", os: "darwin", cpu: "x64", artifact: "darwin_amd64", ext: "tar.gz" },
   { key: "linux-arm64", os: "linux", cpu: "arm64", artifact: "linux_arm64", ext: "tar.gz" },
   { key: "linux-x64", os: "linux", cpu: "x64", artifact: "linux_amd64", ext: "tar.gz" },
   { key: "win32-arm64", os: "win32", cpu: "arm64", artifact: "windows_arm64", ext: "zip" },
-  { key: "win32-x64", os: "win32", cpu: "x64", artifact: "windows_amd64", ext: "zip" },
 ];
 
 function arg(name) {

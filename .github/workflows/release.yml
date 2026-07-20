@@ -61,12 +61,27 @@ jobs:
       - name: Assemble packages
         run: node wrappers/npm/scripts/build-packages.mjs --version "${GITHUB_REF_NAME#v}" --assets assets --out dist-npm
 
+      # Skipping already-published versions makes the step idempotent, so a
+      # partially failed publish can be re-run without choking on the
+      # packages that made it out the first time.
       - name: Publish (platform packages before the main package)
         run: |
-          for pkg in dist-npm/platform/*/; do
-            npm publish "$pkg" --access public --provenance
+          publish() {
+            local name version
+            name=$(node -p "require('./$1/package.json').name")
+            version=$(node -p "require('./$1/package.json').version")
+            if [ -n "$(npm view "$name@$version" version 2>/dev/null || true)" ]; then
+              echo "$name@$version already published; skipping"
+              return 0
+            fi
+            npm publish "$1" --access public --provenance
+          }
+          for pkg in ./dist-npm/platform/*/; do
+            publish "$pkg"
           done
-          npm publish dist-npm/agentminutes --access public --provenance
+          # The ./ prefix keeps npm from reading the path as a GitHub
+          # owner/repo shorthand (it did, and refused with EALLOWGIT).
+          publish ./dist-npm/agentminutes
 
   publish-pypi:
     needs: release

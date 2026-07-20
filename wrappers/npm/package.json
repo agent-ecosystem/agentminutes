@@ -40,7 +40,6 @@
     "agentminutes-darwin-x64": "0.0.0",
     "agentminutes-linux-arm64": "0.0.0",
     "agentminutes-linux-x64": "0.0.0",
-    "agentminutes-win32-arm64": "0.0.0",
-    "agentminutes-win32-x64": "0.0.0"
+    "agentminutes-win32-arm64": "0.0.0"
   }
 }

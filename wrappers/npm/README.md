@@ -9,6 +9,12 @@ This package wraps the prebuilt Go binary. The matching platform binary
 an optional dependency; nothing is downloaded at install time beyond the
 npm packages themselves.
 
+Windows x64 is temporarily unavailable on npm (a registry naming issue is
+being worked out with npm support); use the
+[PyPI package](https://pypi.org/project/agentminutes/) or a
+[release binary](https://github.com/agent-ecosystem/agentminutes/releases)
+with `AGENTMINUTES_BINARY` in the meantime. Windows arm64 is unaffected.
+
 ```bash
 npm install -g agentminutes
 agentminutes --version
