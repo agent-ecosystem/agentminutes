@@ -83,7 +83,7 @@ func TestFixtureMetaTotalsReport(t *testing.T) {
 		t.Errorf("Totals cache = %+v, want read 250 / creation 10", s.Totals)
 	}
 
-	wantSkips := map[string]int{"mode": 1, "file-history-snapshot": 1, "ai-title": 1}
+	wantSkips := map[string]int{"mode": 1, "file-history-snapshot": 1, "file-history-delta": 1, "ai-title": 1}
 	for k, n := range wantSkips {
 		if s.Report.SkippedRecords[k] != n {
 			t.Errorf("SkippedRecords[%s] = %d, want %d", k, s.Report.SkippedRecords[k], n)

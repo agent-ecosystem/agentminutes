@@ -65,7 +65,7 @@ func TestConvertJSONL(t *testing.T) {
 	}
 	// The stderr summary must carry the same per-type breakdown as the json
 	// report's skipped_records, so jsonl consumers can audit what dropped.
-	if !strings.Contains(stderr, "13 events, 3 skipped records (ai-title 1, file-history-snapshot 1, mode 1)") {
+	if !strings.Contains(stderr, "13 events, 4 skipped records (ai-title 1, file-history-delta 1, file-history-snapshot 1, mode 1)") {
 		t.Errorf("stderr = %q, want per-type skip summary", stderr)
 	}
 }

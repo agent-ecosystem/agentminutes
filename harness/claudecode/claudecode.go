@@ -42,6 +42,7 @@ var skipTypes = map[string]bool{
 	"ai-title":              true,
 	"last-prompt":           true,
 	"file-history-snapshot": true,
+	"file-history-delta":    true,
 	"queue-operation":       true,
 }
 
@@ -102,7 +103,8 @@ func (Adapter) Sniff(header []byte) harness.Confidence {
 	switch {
 	case conversationTypes[probe.Type] && probe.SessionID != "" && probe.UUID != "":
 		return harness.Certain
-	case skipTypes[probe.Type] && (probe.SessionID != "" || probe.Type == "file-history-snapshot"):
+	case skipTypes[probe.Type] && (probe.SessionID != "" ||
+		probe.Type == "file-history-snapshot" || probe.Type == "file-history-delta"):
 		return harness.Certain
 	case conversationTypes[probe.Type] || skipTypes[probe.Type] || legacyTypes[probe.Type]:
 		return harness.Possible

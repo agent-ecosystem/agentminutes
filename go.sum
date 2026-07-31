@@ -1,5 +1,5 @@
-github.com/agent-ecosystem/agentsummons v0.2.2 h1:Xf7IWkUE9C1Z5PygaD5spJxQ596mNJAkPuxf8k6dLLQ=
-github.com/agent-ecosystem/agentsummons v0.2.2/go.mod h1:fLKz+G0kl1lojOQUHZt8Yno/NF+f0FsRiMm4yJ11sJQ=
+github.com/agent-ecosystem/agentsummons v0.3.0 h1:6XJ6HWNWdVv0zPC/KVTK/vixoWdJt8W4MGYmhn0PemM=
+github.com/agent-ecosystem/agentsummons v0.3.0/go.mod h1:fLKz+G0kl1lojOQUHZt8Yno/NF+f0FsRiMm4yJ11sJQ=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=

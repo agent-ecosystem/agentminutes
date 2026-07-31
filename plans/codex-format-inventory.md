@@ -1,7 +1,7 @@
 # Codex CLI transcript format: empirical inventory
 
 Status: findings
-Source: four local rollout transcripts under `~/.codex/sessions/`: one older desktop-originated transcript from Codex 0.118.0-alpha.2 and three generated fresh for this inventory with `codex exec` on 0.144.1 (Q&A, shell execution, file write). Thinner evidence than the Claude Code inventory; unverified parts flagged below, loud failure covers the gaps.
+Source: four local rollout transcripts under `~/.codex/sessions/`: one older desktop-originated transcript from Codex 0.118.0-alpha.2 and three generated fresh for this inventory with `codex exec` on 0.144.1 (Q&A, shell execution, file write). Thinner evidence than the Claude Code inventory; unverified parts flagged below, loud failure covers the gaps. Re-validated on 0.146.0 by drift probe: two additive keys, `payload.audio` and `payload.local_audio` (empty arrays on `event_msg` `user_message` payloads, alongside the existing `images`/`local_images`); the file and fetch probes remain inconclusive by construction, unchanged from 0.144.6/0.144.1 (both actions still leave only telemetry, promotable via the opt-in transforms).
 
 **Format drift is real and fast.** Between 0.118 and 0.144: shell execution moved from `function_call` to `custom_tool_call` (with a script-string input), tool outputs changed from strings to content-block arrays, a new top-level `world_state` record type appeared, `token_count` moved from per-turn to per-request, and `session_meta` gained fields (`session_id`, `history_mode`, `context_window`). Any adapter work on Codex should regenerate ground-truth transcripts first.
 

@@ -1,6 +1,6 @@
 {
   "harness": "claude-code",
-  "generated_from_version": "2.1.205",
+  "generated_from_version": "2.1.212",
   "record_types": {
     "ai-title": {
       "keys": [
@@ -16,6 +16,7 @@
         "attributionAgent",
         "attributionSkill",
         "cwd",
+        "effort",
         "entrypoint",
         "error",
         "gitBranch",
@@ -117,6 +118,19 @@
         "version"
       ]
     },
+    "file-history-delta": {
+      "keys": [
+        "backup",
+        "backup.backupFileName",
+        "backup.backupTime",
+        "backup.version",
+        "messageId",
+        "snapshotMessageId",
+        "timestamp",
+        "trackingPath",
+        "type"
+      ]
+    },
     "file-history-snapshot": {
       "keys": [
         "isSnapshotUpdate",
@@ -207,6 +221,8 @@
         "cwd",
         "entrypoint",
         "gitBranch",
+        "imagePasteIds",
+        "interruptedMessageId",
         "isMeta",
         "isSidechain",
         "message",
@@ -230,6 +246,7 @@
         "toolUseResult.allowedTools",
         "toolUseResult.annotations",
         "toolUseResult.answers",
+        "toolUseResult.backgroundCwdHint",
         "toolUseResult.backgroundTaskId",
         "toolUseResult.bytes",
         "toolUseResult.canReadOutputFile",
@@ -246,6 +263,7 @@
         "toolUseResult.file",
         "toolUseResult.filePath",
         "toolUseResult.filenames",
+        "toolUseResult.gitOperation",
         "toolUseResult.interrupted",
         "toolUseResult.isAsync",
         "toolUseResult.isImage",
@@ -288,6 +306,7 @@
         "toolUseResult.timeoutMs",
         "toolUseResult.toolStats",
         "toolUseResult.totalDurationMs",
+        "toolUseResult.totalFiles",
         "toolUseResult.totalMatches",
         "toolUseResult.totalTokens",
         "toolUseResult.totalToolUseCount",

@@ -1,7 +1,7 @@
 # Antigravity CLI transcript format: empirical inventory
 
 Status: findings (updated with paid-tier probe results)
-Source: thirteen local conversations generated with Antigravity CLI (`agy`) 1.1.1: eight from the initial (partly malformed-flag) evaluation, plus five clean probes on a Google AI Pro subscription covering plain Q&A, shell (RUN_COMMAND), file write (CODE_ACTION), URL fetch (READ_URL_CONTENT with side file), and an attempted parallel-tool case. Plus web research on the Gemini CLI transition. Re-validated on 1.1.2 and 1.1.3 by clean drift probes (qa, shell, file, fetch, multi probes exercised and parsed; vocabulary unchanged against the baseline). Note: agy auto-updates itself in place (1.1.2 → 1.1.3 observed within an hour, no user action), so the probe version gate can trigger without a deliberate upgrade.
+Source: thirteen local conversations generated with Antigravity CLI (`agy`) 1.1.1: eight from the initial (partly malformed-flag) evaluation, plus five clean probes on a Google AI Pro subscription covering plain Q&A, shell (RUN_COMMAND), file write (CODE_ACTION), URL fetch (READ_URL_CONTENT with side file), and an attempted parallel-tool case. Plus web research on the Gemini CLI transition. Re-validated on 1.1.2 and 1.1.3 by clean drift probes (qa, shell, file, fetch, multi probes exercised and parsed; vocabulary unchanged against the baseline). Re-validated on 1.1.8 by drift probe (all five probes exercised and parsed): one additive key, `exit_code` (int) on `RUN_COMMAND` result records, and the RUN_COMMAND content template now reads "The command exited with code N." instead of "The command completed successfully." (content is kept verbatim either way; the adapter leaves `exit_code` unread — `error` remains the error signal). 1.1.8 also added headless JSON output (see Headless usage). Note: agy auto-updates itself in place (1.1.2 → 1.1.3 observed within an hour, no user action), so the probe version gate can trigger without a deliberate upgrade.
 
 Clean fixture conversations (brain dir IDs) for the future adapter: `9e2ef85c` (Q&A), `70241608` (shell), `5f6c0eb7` (file write), `22622b27` (fetch), `5e2b84cc` (two sequential tools).
 
@@ -23,6 +23,7 @@ agy --dangerously-skip-permissions --add-dir "$WORKDIR" -p "prompt"
 - Auth is a one-time interactive Google OAuth (needs a real TTY; fails under Claude Code's `!` shell). Stored globally.
 - On 1.1.1, `--print` output survives piping to a non-TTY (earlier versions had a known stdout-drop bug, fixed).
 - `--model` selects the model; observed default "Gemini 3.5 Flash (Medium)".
+- From 1.1.8, `--output-format json` works in print mode and the result envelope carries `conversation_id` in-band (agentsummons 0.3.0 assembles it via `Request.JSONOutput`). Consequence for this library's discovery seam: a headless runner using JSON output gets the conversation ID directly and can `Locate` the transcript by ID; post-hoc time-window discovery (`agentminutes sessions`) is only needed in text mode or on agy older than 1.1.8. Resume (`--conversation <id>`) appends to the same conversation directory rather than forking a new one.
 
 **Quota warning:** the free individual tier was exhausted by a few minutes of runaway agentic exploration (~250 steps total), with a ~7-day reset. The experiment's Antigravity leg (~720 invocations) cannot run on the free tier.
 
@@ -47,7 +48,7 @@ The key finding vs. earlier third-party reports: **the brain JSONL transcripts a
 
 ## transcript_full.jsonl record schema
 
-One JSON object per line. Keys observed across all conversations: `step_index`, `source` (`USER_EXPLICIT` | `MODEL` | `SYSTEM`), `type`, `status` (`DONE`), `created_at` (RFC3339 UTC, seconds), `content`, `tool_calls`, `thinking`, `error`, `error_code`.
+One JSON object per line. Keys observed across all conversations: `step_index`, `source` (`USER_EXPLICIT` | `MODEL` | `SYSTEM`), `type`, `status` (`DONE`), `created_at` (RFC3339 UTC, seconds), `content`, `tool_calls`, `thinking`, `error`, `error_code`, and from 1.1.8 `exit_code` (int, on `RUN_COMMAND` results).
 
 Record types observed:
 

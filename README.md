@@ -15,7 +15,7 @@ Early development, pre-release. The normalized schema is versioned (currently `0
 | Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
 | Gemini CLI (classic) | Not planned | Retired for individual users June 2026; Antigravity is its successor |
 
-Adapters are validated against real transcripts (Antigravity 1.1.1 through 1.1.4; Claude Code 2.1.153 through 2.1.205; Codex 0.118 and 0.144 through 0.144.6) with a mechanical line-accounting check: every source line becomes an event, a counted skip, or an error. See [Design notes](#design-notes) for why that matters. Antigravity and Codex coverage is thinner than Claude Code's (fewer local transcripts) and both formats drift quickly between releases; see the inventories under `plans/` for what is verified vs. implemented from documented shapes. Antigravity transcripts carry no token usage, and their tool calls have no correlation IDs (the adapter synthesizes step-derived IDs and pairs positionally).
+Adapters are validated against real transcripts (Antigravity 1.1.1 through 1.1.8; Claude Code 2.1.153 through 2.1.212; Codex 0.118 and 0.144 through 0.146.0) with a mechanical line-accounting check: every source line becomes an event, a counted skip, or an error. See [Design notes](#design-notes) for why that matters. Antigravity and Codex coverage is thinner than Claude Code's (fewer local transcripts) and both formats drift quickly between releases; see the inventories under `plans/` for what is verified vs. implemented from documented shapes. Antigravity transcripts carry no token usage, and their tool calls have no correlation IDs (the adapter synthesizes step-derived IDs and pairs positionally).
 
 ## Install
 
@@ -190,7 +190,9 @@ for _, p := range ref.SubagentPaths { // Claude Code agent-*.jsonl files
 }
 ```
 
-Scans obey the same accounting discipline as parses, lifted from per-line to per-file: everything under a root is a yielded ref, a reported skip (`ScanOptions.OnSkip`), or a `*harness.ScanError` — which, unlike a parse error, does not end the scan. Discovery never parses beyond each transcript's head, and it never invents identity except where the layout is the documented source (an Antigravity session ID is its conversation directory name; the format records none in-band). For non-default roots, use `agentminutes.LocatorFor(id).Scan(root, opts)`.
+A located ref stays valid across resumed turns: every supported harness appends resumes to the same transcript rather than forking a new session (validated on the versions listed above), so multi-turn runners can re-`Locate` the same ID after each turn to pick up the grown transcript and any new subagent files.
+
+Scans obey the same accounting discipline as parses, lifted from per-line to per-file: everything under a root is a yielded ref, a reported skip (`ScanOptions.OnSkip`), or a `*harness.ScanError` — which, unlike a parse error, does not end the scan. Discovery never parses beyond each transcript's head, and it never invents identity except where the layout is the documented source (an Antigravity session ID is its conversation directory name; the format records none in-band, though from agy 1.1.8 a headless run with `--output-format json` receives the conversation ID in its result envelope, so capture-time runners need time-window discovery only in text mode or on older releases). For non-default roots, use `agentminutes.LocatorFor(id).Scan(root, opts)`.
 
 ## The schema
 

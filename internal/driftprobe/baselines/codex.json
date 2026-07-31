@@ -1,11 +1,12 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.144.6",
+  "generated_from_version": "0.146.0",
   "record_types": {
     "event_msg": {
       "keys": [
         "payload",
         "payload.action",
+        "payload.audio",
         "payload.call_id",
         "payload.changes",
         "payload.collaboration_mode_kind",
@@ -14,6 +15,7 @@
         "payload.images",
         "payload.info",
         "payload.last_agent_message",
+        "payload.local_audio",
         "payload.local_images",
         "payload.memory_citation",
         "payload.message",

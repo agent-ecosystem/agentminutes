@@ -1,6 +1,6 @@
 {
   "harness": "antigravity",
-  "generated_from_version": "1.1.4",
+  "generated_from_version": "1.1.8",
   "record_types": {
     "ASK_QUESTION": {
       "keys": [
@@ -173,6 +173,7 @@
       "keys": [
         "content",
         "created_at",
+        "exit_code",
         "source",
         "status",
         "step_index",

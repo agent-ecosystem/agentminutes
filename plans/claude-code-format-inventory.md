@@ -1,7 +1,7 @@
 # Claude Code transcript format: empirical inventory
 
 Status: findings
-Source: exhaustive scan of 33 local JSONL transcripts (4,220 records, 0 parse errors) under `~/.claude/projects/`, harness versions 2.1.153, 2.1.177, 2.1.187, 2.1.197. Re-validated on 2.1.204 by a clean drift probe (all six probes exercised and parsed; vocabulary unchanged against the baseline). Re-validated on 2.1.205 by baseline reconciliation over the local corpus, triggered by `drift scan` flagging tool-denial transcripts: five additive keys absorbed (`toolDenialKind`, `session_id`, `pendingBackgroundAgentCount`, and the `dangerouslyDisableSandbox`/`staleRecovered` sidecar keys; each documented in its section below), no structural changes.
+Source: exhaustive scan of 33 local JSONL transcripts (4,220 records, 0 parse errors) under `~/.claude/projects/`, harness versions 2.1.153, 2.1.177, 2.1.187, 2.1.197. Re-validated on 2.1.204 by a clean drift probe (all six probes exercised and parsed; vocabulary unchanged against the baseline). Re-validated on 2.1.205 by baseline reconciliation over the local corpus, triggered by `drift scan` flagging tool-denial transcripts: five additive keys absorbed (`toolDenialKind`, `session_id`, `pendingBackgroundAgentCount`, and the `dangerouslyDisableSandbox`/`staleRecovered` sidecar keys; each documented in its section below), no structural changes. Re-validated on 2.1.212 by drift probe (all six probes exercised and parsed): one new record type, `file-history-delta` (skip-listed; see the skip table), plus additive keys `effort` (assistant envelope), `gitOperation`/`backgroundCwdHint` (Bash sidecar), and `totalFiles` (Grep sidecar); the same reconciliation absorbed `imagePasteIds`/`interruptedMessageId` (user envelope, 2.1.205-era interactive sessions) from the local corpus.
 
 This grounds the `session` schema in what Claude Code actually writes, and records the normalization rules the `harness/claudecode` adapter must implement. Numbers below are from this sample; they describe presence and shape, not guarantees.
 
@@ -33,13 +33,14 @@ Ten `type` values observed, in two clear families.
 | `ai-title` | 227 | Generated session title |
 | `last-prompt` | 219 | Pointer to latest prompt (leafUuid) |
 | `file-history-snapshot` | 196 | Checkpointing metadata for file rollback |
+| `file-history-delta` | — | Per-file backup record for the rollback feature (2.1.212): `messageId`, `snapshotMessageId`, `trackingPath`, `backup{backupFileName (nullable), version, backupTime}`, `timestamp`. No `sessionId`, like `file-history-snapshot` |
 | `queue-operation` | 40 | Prompt queue enqueue/dequeue/remove |
 
-These carry no model-visible content. Proposal: exclude from the event stream as an *explicit, enumerated* skip list, with counts surfaced in a parse report so nothing is silently dropped. Any `type` outside the known ten is an error (or an `unknown` event in permissive mode).
+These carry no model-visible content. Proposal: exclude from the event stream as an *explicit, enumerated* skip list, with counts surfaced in a parse report so nothing is silently dropped. Any `type` outside the known list is an error (or an `unknown` event in permissive mode).
 
 ## Common envelope (conversation records)
 
-Every conversation record carries: `uuid`, `parentUuid` (threading chain; null at file root), `timestamp` (ISO 8601 UTC with ms), `sessionId`, `version` (harness version, per record), `cwd`, `gitBranch`, `userType` (`external`), `entrypoint` (`cli`), `isSidechain`. Agent files add `agentId`. From 2.1.204, `assistant`/`user`/`attachment` records also carry `session_id`, a snake_case duplicate of `sessionId` (observed identical; the adapter keeps reading `sessionId`). This is where `session_meta` comes from: constant-per-file fields lift into meta; `cwd`/`gitBranch` can in principle change mid-session, so the adapter should verify or track them.
+Every conversation record carries: `uuid`, `parentUuid` (threading chain; null at file root), `timestamp` (ISO 8601 UTC with ms), `sessionId`, `version` (harness version, per record), `cwd`, `gitBranch`, `userType` (`external`), `entrypoint` (`cli`), `isSidechain`. Agent files add `agentId`. From 2.1.204, `assistant`/`user`/`attachment` records also carry `session_id`, a snake_case duplicate of `sessionId` (observed identical; the adapter keeps reading `sessionId`). From 2.1.212, `assistant` records carry `effort` (the reasoning-effort level; sole observed value `"high"`). Interactive 2.1.205-era `user` records can carry `imagePasteIds` (int array) and `interruptedMessageId`; all three are additive envelope keys the adapter leaves unread. This is where `session_meta` comes from: constant-per-file fields lift into meta; `cwd`/`gitBranch` can in principle change mid-session, so the adapter should verify or track them.
 
 ## Key structural findings
 
@@ -64,13 +65,13 @@ Tool-result `user` records often (557/818) carry a top-level `toolUseResult` wit
 
 | Tool | sidecar keys |
 | --- | --- |
-| Bash | `stdout`, `stderr`, `interrupted`, `isImage`, `noOutputExpected`, `backgroundTaskId`, `persistedOutputPath`, `dangerouslyDisableSandbox` (bool; 2.1.205) |
+| Bash | `stdout`, `stderr`, `interrupted`, `isImage`, `noOutputExpected`, `backgroundTaskId`, `persistedOutputPath`, `dangerouslyDisableSandbox` (bool; 2.1.205), `gitOperation` (2.1.212; structured git metadata on commit/push commands: `commit{sha, kind}`, `push{branch}`), `backgroundCwdHint` (str; 2.1.212, background tasks) |
 | Read | `type`, `file` (path, full content) |
 | Edit | `filePath`, `oldString`, `newString`, `originalFile`, `structuredPatch`, `userModified`, `replaceAll`, `staleRecovered` (bool; 2.1.205) |
 | Write | `filePath`, `content`, `structuredPatch`, `originalFile`, `userModified` |
 | WebFetch | `bytes`, `code`, `codeText`, `url`, `durationMs`, `result` |
 | WebSearch | `query`, `results`, `durationSeconds`, `searchCount` |
-| Grep | `content`, `filenames`, `mode`, `numFiles`, `numLines` (observed 2.1.197, smoke tests) |
+| Grep | `content`, `filenames`, `mode`, `numFiles`, `numLines` (observed 2.1.197, smoke tests), `totalFiles` (2.1.212; observed with `mode: "files_with_matches"`) |
 | Glob | `countIsComplete`, `durationMs`, `filenames`, `numFiles`, `totalMatches`, `truncated` (observed 2.1.197, smoke tests) |
 | Agent | Two disjoint shapes keyed by `status`. Synchronous completion (`status: "completed"`): `agentId`, `agentType`, `content`, `prompt`, `resolvedModel`, `status`, `toolStats`, `totalDurationMs`, `totalTokens`, `totalToolUseCount`, `usage` (n=9). Background spawn acknowledgement (`status: "async_launched"`): `agentId`, `canReadOutputFile`, `description`, `isAsync` (true), `outputFile`, `prompt`, `resolvedModel`, `status` (n=6). `outputFile` points outside `~/.claude/projects` (a per-session tasks dir under the OS temp root), so post-hoc availability is not guaranteed. (2.1.197) |
 | SendMessage | `success` (bool), `message` (str), `resumedAgentId` (str; the continued agent, joinable against Agent results' `agentId`) (n=1, 2.1.197) |
