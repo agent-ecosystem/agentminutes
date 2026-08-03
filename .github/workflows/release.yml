@@ -20,10 +20,29 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: goreleaser/goreleaser-action@v6
+      # The release notes are the tag's CHANGELOG.md section, not a commit
+      # list. Written to runner.temp because an untracked file in the repo
+      # would make goreleaser's dirty-tree check fail. A missing section
+      # fails the release before anything publishes: promote Unreleased to
+      # the version heading before tagging (see DEVELOPMENT.md).
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          heading="## [${GITHUB_REF_NAME#v}]"
+          awk -v heading="$heading" '
+            found && /^## / { exit }
+            found { print }
+            substr($0, 1, length(heading)) == heading { found = 1 }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"; then
+            echo "CHANGELOG.md has no section for ${GITHUB_REF_NAME#v}; promote Unreleased before tagging (see DEVELOPMENT.md)" >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/release-notes.md"
+
+      - uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes ${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
