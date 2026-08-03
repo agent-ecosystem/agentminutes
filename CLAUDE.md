@@ -32,3 +32,51 @@ AGENTMINUTES_LOCAL_TRANSCRIPTS=~/.claude/projects go test ./acp/ -run TestLocalL
 
 - `session/` schema + `Accumulator` + `Stats()` + `Transform`; `harness/` adapter contract + `Locator` discovery contract + `LastValidated`; `harness/<name>/` one package per harness (parser + `locate.go`); `acp/` ACP projection + loss report; `internal/parseutil/` shared adapter helpers; `internal/locatetest/` per-file scan accounting invariant; `internal/driftprobe/` drift devtool engine + embedded baselines (headless invocation delegates to the agentsummons library — flag knowledge lives there); `cmd/agentminutes/` CLI (`convert`, `detect`, `drift`, `sessions`, `stats`); facade in root `agentminutes.go`; `wrappers/` npm + PyPI wrapper packages (checked-in sources with tests against a fake binary; `npm/scripts/build-packages.mjs` and `pypi/build_wheels.py` assemble publishable artifacts from goreleaser archives, and the release workflow publishes them per tag via registry trusted publishing — structure mirrors agentsummons' `wrappers/`, keep them aligned).
 - `plans/` holds design/status docs that are not user documentation: format inventories, registration plan, next steps.
+
+## Docs site (site/)
+
+Hugo + Lotus Docs site for agentminutes.dev, instantiated from
+af-site-scaffold's template. Deploy with `site/build_and_sync` (rsync to
+Dreamhost); llms.txt and per-page markdown are Hugo output formats,
+regenerated on every build. Verify locally with
+`hugo server -p 1721` + `afdocs check http://localhost:1721` (never port
+1719/1720: Node's fetch blocks WHATWG bad-list ports and every check
+reports "fetch failed"; `content-negotiation` passes only on the live
+Apache site). The repo pre-commit hook runs `site/check_prose_style`
+(Vale, DC style: em dashes and "not X, but Y" constructions are errors).
+README.md is outside the hook's scope; lint it with
+`vale --config site/.vale.ini README.md`.
+
+Docs that move with the code:
+
+- `content/docs/cli.md`: every example is captured real output. The
+  convert/stats/sessions examples come from a minimal claude-code
+  session (harness 2.1.204, `agentminutes_schema` "0.1.0"); the
+  promotion example runs `harness/codex/testdata/rollout.jsonl` with
+  and without `--promote codex:patch-apply`. When output shapes,
+  SchemaVersion, or stats fields change, re-run the commands and
+  re-capture rather than hand-editing numbers.
+- `content/docs/schema.md`: the event-kind table mirrors `session/`
+  types, and the schema revision appears inline. The "token fields
+  carry provider semantics" bullet ties to issues #1/#2; if token
+  normalization or the codex cache_write mapping lands, update it
+  together with `example-comparison.md`'s token bullet (they document
+  the same trap from two angles).
+- `content/docs/example-comparison.md`: a captured same-task run
+  (claude-code 2.1.212 vs codex 0.146.0), including token arithmetic
+  tied to current provider usage semantics. Historical capture is fine
+  as-is; re-capture if the stats shape changes or the token issues
+  resolve.
+- `content/docs/discovery.md`: the resumed-turns walkthrough is a
+  captured two-turn claude-code run; stable unless resume semantics
+  change.
+- `content/docs/harnesses.md`: support table mirrors the registry and
+  README table (the alphabetical-lists rule covers all three).
+- `data/landing.yaml` hero badge pins the release version;
+  `assets/images/terminal-hero.svg` (hand-edited) and
+  `sharing-image.html` bake in command output. After editing
+  sharing-image.html, run `site/generate_sharing_image` (headless
+  Chrome) to re-render `static/sharing.png`.
+- `content/docs/cli.md` promotions prose mirrors
+  `plans/telemetry-promotion.md` behavior and the exported transform
+  names; keep them aligned when promotions are added.
