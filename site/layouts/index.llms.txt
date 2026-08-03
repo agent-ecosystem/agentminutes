@@ -1,0 +1,10 @@
+# {{ .Site.Title }}
+
+> {{ .Site.Params.description | default .Site.Title }}
+
+## Documentation
+
+- [Home]({{ .Permalink }}index.md){{ with .Site.Params.description }}: {{ . }}{{ end }}
+{{- range sort (where .Site.Pages "Kind" "in" (slice "section" "page")) "Permalink" }}
+- [{{ .Title }}]({{ .Permalink }}index.md){{ with .Description }}: {{ . }}{{ end }}
+{{- end }}

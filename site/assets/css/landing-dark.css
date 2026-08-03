@@ -1,0 +1,60 @@
+/* Dark mode overlay for the Lotus landing page. The theme's landing
+   stylesheet compiles static colors with no [data-dark-mode] rules (dark
+   mode exists only in the docs stylesheet), so this flips the landing
+   surfaces using the docs pages' dark palette: bg #181921, alt #212529,
+   text #dee2e6, muted #b6b9be. */
+
+[data-dark-mode] body {
+  background-color: #181921;
+  color: #dee2e6;
+}
+
+[data-dark-mode] .heading,
+[data-dark-mode] .title,
+[data-dark-mode] h1,
+[data-dark-mode] h2,
+[data-dark-mode] h3,
+[data-dark-mode] h4,
+[data-dark-mode] h5 {
+  color: #dee2e6;
+}
+
+[data-dark-mode] .text-muted,
+[data-dark-mode] .para,
+[data-dark-mode] .para-desc {
+  color: #b6b9be !important;
+}
+
+/* Top nav: theme sets link color to $dark !important */
+[data-dark-mode] #topnav .navigation-menu > li > a {
+  color: #dee2e6 !important;
+}
+
+[data-dark-mode] #topnav.nav-sticky {
+  background-color: #212529;
+}
+
+[data-dark-mode] #topnav .navbar-toggle .lines span {
+  background-color: #dee2e6;
+}
+
+[data-dark-mode] .btn-soft-light {
+  background-color: #292a35;
+  color: #dee2e6;
+}
+
+/* Footer: .footer-light compiles to a light gray background */
+[data-dark-mode] .footer.footer-light {
+  background: #212529;
+  color: #b6b9be;
+}
+
+[data-dark-mode] .footer.footer-light a {
+  color: #dee2e6;
+}
+
+/* Feature grid icon chips: theme uses rgba(primary, 0.05), nearly
+   invisible on a dark background */
+[data-dark-mode] .features .icon {
+  background: rgba(110, 168, 254, 0.08);
+}

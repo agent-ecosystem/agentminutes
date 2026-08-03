@@ -1,0 +1,125 @@
+baseURL = "https://agentminutes.dev/"
+title = "agentminutes"
+languageCode = "en-US"
+enableEmoji = true
+enableGitInfo = false
+
+# Library docs sites don't need tag/category pages; disabling them avoids
+# low-value pages that would otherwise need markdown counterparts.
+disableKinds = ["taxonomy", "term"]
+
+# Social sharing image (og:image / twitter:image) for every page.
+# static/sharing.png is rendered from sharing-image.html by
+# ./generate_sharing_image (headless Chrome). The cascade sets it as a page
+# param on all pages, which takes priority over the theme's auto-generated
+# OpenGraph card on docs pages; the landing page picks it up via the
+# head.html override.
+[[cascade]]
+  [cascade.params]
+    images = ["sharing.png"]
+  [cascade.target]
+    path = "/**"
+
+[module]
+  [module.hugoVersion]
+    extended = true
+    min = "0.140.0"
+  [[module.imports]]
+    path = "github.com/colinwilson/lotusdocs"
+    disable = false
+  [[module.imports]]
+    path = "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
+    disable = false
+
+[markup]
+  defaultMarkdownHandler = "goldmark"
+  [markup.tableOfContents]
+    startLevel = 1
+    endLevel = 3
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+# --- Agent-friendly output formats -----------------------------------------
+# Markdown: every page gets an index.md sibling containing the raw content.
+# LLMS: the homepage additionally emits /llms.txt, an agent discovery index.
+# Templates: layouts/_default/single.md, section.md, layouts/index.md,
+# layouts/index.llms.txt
+
+[mediaTypes."text/markdown"]
+  suffixes = ["md"]
+
+[outputFormats.Markdown]
+  mediaType = "text/markdown"
+  baseName = "index"
+  isPlainText = true
+
+[outputFormats.LLMS]
+  mediaType = "text/plain"
+  baseName = "llms"
+  isPlainText = true
+
+[outputs]
+  home = ["HTML", "RSS", "Markdown", "LLMS"]
+  page = ["HTML", "Markdown"]
+  section = ["HTML", "RSS", "Markdown"]
+
+[params]
+
+  description = "Parse native agent harness session logs (Antigravity CLI, Claude Code, Codex CLI) into one unified, comparable event schema."
+
+  google_fonts = [
+    ["Inter", "300, 400, 600, 700"],
+    ["Fira Code", "500, 700"]
+  ]
+
+  sans_serif_font = "Inter"
+  secondary_font  = "Inter"
+  mono_font       = "Fira Code"
+
+  [params.footer]
+    copyright = "© :YEAR: [Dachary Carey](https://dacharycarey.com). An [**Agent Ecosystem**](https://agentecosystem.dev) tool."
+
+  [params.social]
+    # Bare ID only (user or user/repo): the theme prepends https://github.com/
+    github = "agent-ecosystem/agentminutes"
+
+  [params.docs]
+    title           = "agentminutes"
+    darkMode        = true
+    prism           = true
+    prismTheme      = "lotusdocs"
+
+    repoURL         = "https://github.com/agent-ecosystem/agentminutes"
+    repoBranch      = "main"
+    editPage        = false
+    lastMod         = false
+
+    sidebarIcons    = true
+    breadcrumbs     = true
+    backToTop       = true
+
+    toc             = true
+    tocMobile       = true
+    scrollSpy       = true
+
+    descriptions    = true
+    titleIcon       = false
+
+    navDesc         = true
+    navDescTrunc    = 30
+    listDescTrunc   = 100
+
+    intLinkTooltip  = false
+
+  # Client-side search adds a JS index that agents never use; off by default.
+  # Flip to true if a site's docs grow large enough that humans need it.
+  [params.flexsearch]
+    enabled = false
+
+[menu]
+  [[menu.primary]]
+    name  = "Docs"
+    url = "docs/"
+    identifier = "docs"
+    weight = 10

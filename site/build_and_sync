@@ -1,0 +1,21 @@
+#!/bin/sh
+# Build the site and deploy to Dreamhost via rsync over ssh.
+#
+# Per-library setup: set DEPLOY_TARGET below (or export it) to the
+# rsync destination for the site, e.g. "myuser@myhost.dreamhost.com:example.com/"
+# llms.txt is generated natively by Hugo (layouts/index.llms.txt), so there is
+# no pre-build generation step.
+
+set -e
+cd "$(dirname "$0")"
+
+DEPLOY_TARGET="${DEPLOY_TARGET:-dacharycarey.com:agentminutes.dev/}"
+if [ -z "$DEPLOY_TARGET" ]; then
+    echo "DEPLOY_TARGET is not set. Edit build_and_sync or export DEPLOY_TARGET." >&2
+    exit 1
+fi
+
+rm -rf public
+hugo --gc --minify
+
+rsync -avz public/ "$DEPLOY_TARGET"

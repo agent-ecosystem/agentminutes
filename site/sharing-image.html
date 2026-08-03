@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        background: #181921;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 70px;
+        overflow: hidden;
+        position: relative;
+      }
+      .glow {
+        position: absolute;
+        width: 800px;
+        height: 800px;
+        left: 500px;
+        background: radial-gradient(circle, rgba(59, 90, 160, 0.25) 0%, transparent 65%);
+        border-radius: 50%;
+        pointer-events: none;
+      }
+      .text {
+        position: relative;
+        z-index: 1;
+        max-width: 520px;
+      }
+      h1 {
+        color: #dee2e6;
+        font-size: 64px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin-bottom: 18px;
+      }
+      .tagline {
+        font-size: 24px;
+        line-height: 1.5;
+        color: #b6b9be;
+      }
+      .tagline strong {
+        color: #dee2e6;
+      }
+      .url {
+        position: absolute;
+        bottom: 30px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 16px;
+        color: #6b7280;
+        letter-spacing: 0.5px;
+      }
+      .term {
+        position: relative;
+        z-index: 1;
+        width: 430px;
+        background: #15171c;
+        border: 1px solid #2e323c;
+        border-radius: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 15px;
+        line-height: 1.9;
+        color: #d4d4d8;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+      .term-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-bottom: 1px solid #2e323c;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .term-body {
+        padding: 16px 22px 20px;
+        white-space: pre;
+      }
+      .p { color: #4ade80; }
+      .h { color: #93c5fd; }
+      .ok { color: #4ade80; }
+      .dim { color: #8b8b93; }
+    </style>
+  </head>
+  <body>
+    <div class="glow"></div>
+    <div class="text">
+      <h1>agentminutes</h1>
+      <p class="tagline">
+        Meeting minutes for your agents. Parse <strong>Antigravity&nbsp;CLI</strong>,
+        <strong>Claude&nbsp;Code</strong>, and <strong>Codex&nbsp;CLI</strong> session
+        logs into one comparable event schema.
+      </p>
+    </div>
+    <div class="term">
+      <div class="term-bar">
+        <div class="dot" style="background: #ff5f57"></div>
+        <div class="dot" style="background: #febc2e"></div>
+        <div class="dot" style="background: #28c840"></div>
+      </div>
+      <div class="term-body"><span class="p">$</span> agentminutes detect session.jsonl
+<span class="h">claude-code</span>   <span class="ok">certain</span>
+
+<span class="p">$</span> agentminutes convert \
+    --format jsonl session.jsonl \
+    | jq -r .kind
+<span class="dim">session_meta
+user_message
+tool_call
+assistant_message</span></div>
+    </div>
+    <p class="url">agentminutes.dev</p>
+  </body>
+</html>

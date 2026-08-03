@@ -1,0 +1,18 @@
+# afdocs configuration (auto-discovered when afdocs runs from this directory).
+#
+# The landing page hero's buttons, version badge, and license tagline are
+# navigation chrome, not content; agents get the same information from the
+# markdown homepage (docs index link, sections list) and llms.txt. Exclude
+# them from the markdown-content-parity comparison rather than mirroring
+# button labels into the markdown output.
+# Heading anchor links (a.anchor) and Material icon ligature text
+# (i.material-icons renders words like "link" as icons) are markup, not
+# content, and have no markdown counterpart.
+options:
+  parityExclusions:
+    - .hero .badge
+    - .hero .btn
+    - .hero .text-muted
+    - .hero .classic-hero-image
+    - a.anchor
+    - i.material-icons

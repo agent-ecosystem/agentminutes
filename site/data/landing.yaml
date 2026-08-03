@@ -1,0 +1,75 @@
+# Landing page sections for the Lotus Docs homepage template.
+#
+# The theme ships its own data/landing.yaml and Hugo merges it underneath
+# this one, so any section not defined here renders with the theme's demo
+# copy. Explicitly disable theme sections we don't use (re-check when
+# updating the theme). Avoid '--' in prose here: Goldmark's typographer
+# renders it as an en dash in HTML, which breaks parity segment matching.
+
+imageCompare:
+  enable: false
+
+hero:
+  enable: true
+  weight: 10
+  template: hero
+
+  badge:
+    text: v0.3.0
+    color: primary
+    pill: false
+    soft: true
+
+  title: "agentminutes"
+  subtitle: Meeting minutes for your agents. Parse native session logs from **Antigravity CLI**, **Claude Code**, and **Codex CLI** into one unified, comparable event schema.
+
+  # Inline SVG terminal card (assets/images/terminal-hero.svg). Its text is
+  # in the DOM, so it's excluded from parity in agent-docs.config.yml.
+  image:
+    path: "images"
+    filename: "terminal-hero.svg"
+    alt: "Terminal showing agentminutes detect, sessions, and convert commands"
+
+  ctaButton:
+    icon: rocket_launch
+    btnText: "Get Started"
+    url: "/docs/quickstart/"
+  cta2Button:
+    icon: code
+    btnText: "View on GitHub"
+    url: "https://github.com/agent-ecosystem/agentminutes"
+
+  info: "**Open Source** MIT Licensed."
+
+featureGrid:
+  enable: true
+  weight: 20
+  template: feature grid
+
+  title: Why agentminutes?
+  subtitle: Harness transcripts are ground truth for how an agent actually behaved, and every harness invents its own format. agentminutes parses them all into a single event schema you can analyze and compare, in Go or from the command line.
+
+  items:
+    - title: One schema, three harnesses
+      icon: hub
+      description: Sessions from Antigravity CLI, Claude Code, and Codex CLI normalize into the same ordered event list, so analysis written once works across harnesses.
+
+    - title: Every line accounted for
+      icon: fact_check
+      description: Each source line becomes an event, a counted skip, or an error. A mechanical line-accounting check enforces the guarantee, so behavioral metrics never rest on silently dropped records.
+
+    - title: Session discovery
+      icon: travel_explore
+      description: Find transcripts without parsing everything. The sessions command and the Scan/Locate API filter harness-owned roots by cwd, session ID, and time window.
+
+    - title: Shared vocabulary
+      icon: menu_book
+      description: Event kinds follow the Agent Client Protocol's session-update vocabulary; token usage follows OTel GenAI conventions. Every schema field is tagged with its provenance, enforced by a test.
+
+    - title: Streaming core
+      icon: waterfall_chart
+      description: Adapters emit events as an iterator; whole-file parsing is a thin accumulator on top. Large transcripts process incrementally, and the first event always identifies the session.
+
+    - title: Loud failure
+      icon: campaign
+      description: An unrecognized record is a parse error naming the harness, version, and line. When the transcript is newer than the validated format, the error says so. Prefer degraded output? Opt in with permissive mode.

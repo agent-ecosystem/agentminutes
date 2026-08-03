@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Lints uncommitted .md files with Vale against the DC style.
+# Called from a git pre-commit hook; safe to run manually too.
+#
+# Works whether this site lives at the repo root or in a subdirectory
+# (e.g. site/): the git commands below emit paths relative to this
+# script's directory and only match files under it.
+#
+# Excluded paths:
+#   layouts/ - Hugo output-format templates use the .md extension but
+#     are Go templates, not prose; they break Vale's parser.
+#   archetypes/ - same, if a site adds them.
+#   .vale/ - style bundle internals (third-party notices).
+
+SITE_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SITE_DIR" || exit 1
+
+if ! command -v vale >/dev/null 2>&1; then
+  echo "vale not found on PATH. Install with: brew install vale" >&2
+  exit 1
+fi
+
+FILES=$( { git diff --relative --name-only --diff-filter=ACMR -- '*.md'
+           git diff --relative --cached --name-only --diff-filter=ACMR -- '*.md'
+           git ls-files --others --exclude-standard -- '*.md'
+         } | sort -u | grep -v '^layouts/' \
+           | grep -v '^archetypes/' \
+           | grep -v '^\.vale/')
+
+[ -z "$FILES" ] && exit 0
+
+vale --config .vale.ini $FILES

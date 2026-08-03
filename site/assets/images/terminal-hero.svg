@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 344" role="img" aria-label="Terminal showing agentminutes detect, sessions, and convert commands" style="max-width:100%;height:auto">
+  <rect x="0.5" y="0.5" width="559" height="343" rx="14" fill="#15171c" stroke="#2e323c"/>
+  <circle cx="24" cy="24" r="6" fill="#ff5f57"/>
+  <circle cx="44" cy="24" r="6" fill="#febc2e"/>
+  <circle cx="64" cy="24" r="6" fill="#28c840"/>
+  <text x="280" y="28" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#8b8b93">agentminutes</text>
+  <line x1="0.5" y1="44" x2="559.5" y2="44" stroke="#2e323c"/>
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" xml:space="preserve">
+    <text x="24" y="74"><tspan fill="#4ade80">$</tspan><tspan fill="#e4e4e7" dx="8">agentminutes detect session.jsonl</tspan></text>
+    <text x="40" y="96"><tspan fill="#93c5fd">claude-code</tspan><tspan x="180" fill="#4ade80">certain</tspan></text>
+    <text x="24" y="134"><tspan fill="#4ade80">$</tspan><tspan fill="#e4e4e7" dx="8">agentminutes sessions --cwd ~/runs/exp-42</tspan></text>
+    <text x="40" y="156" fill="#d4d4d8">~/.claude/projects/&#8230;/0199c9a3&#8230;.jsonl</text>
+    <text x="24" y="194"><tspan fill="#4ade80">$</tspan><tspan fill="#e4e4e7" dx="8">agentminutes convert --format jsonl \</tspan></text>
+    <text x="48" y="216" fill="#e4e4e7">session.jsonl | jq -r .kind</text>
+    <text x="40" y="240" fill="#8b8b93">session_meta</text>
+    <text x="40" y="262" fill="#8b8b93">user_message</text>
+    <text x="40" y="284" fill="#8b8b93">tool_call</text>
+    <text x="40" y="306" fill="#8b8b93">assistant_message</text>
+    <text x="24" y="330"><tspan fill="#4ade80">$</tspan><tspan fill="#6b7280" dx="8">&#9608;</tspan></text>
+  </g>
+</svg>

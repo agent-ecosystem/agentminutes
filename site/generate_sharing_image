@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Renders sharing-image.html to static/sharing.png (1200x630) with headless
+# Chrome. Run after editing sharing-image.html; commit the PNG. The image is
+# wired to og:image/twitter:image via the cascade in hugo.toml.
+
+SITE_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+CHROME="${CHROME:-}"
+if [ -z "$CHROME" ]; then
+  for candidate in \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "$(command -v google-chrome 2>/dev/null)" \
+    "$(command -v chromium 2>/dev/null)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+      CHROME="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$CHROME" ]; then
+  echo "Chrome not found. Set CHROME to the browser binary path." >&2
+  exit 1
+fi
+
+"$CHROME" --headless=new \
+  --screenshot="$SITE_DIR/static/sharing.png" \
+  --window-size=1200,630 --hide-scrollbars \
+  "file://$SITE_DIR/sharing-image.html" 2>/dev/null
+
+ls -la "$SITE_DIR/static/sharing.png"
