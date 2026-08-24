@@ -1,7 +1,7 @@
 # Claude Code transcript format: empirical inventory
 
 Status: findings
-Source: exhaustive scan of 33 local JSONL transcripts (4,220 records, 0 parse errors) under `~/.claude/projects/`, harness versions 2.1.153, 2.1.177, 2.1.187, 2.1.197. Re-validated on 2.1.204 by a clean drift probe (all six probes exercised and parsed; vocabulary unchanged against the baseline). Re-validated on 2.1.205 by baseline reconciliation over the local corpus, triggered by `drift scan` flagging tool-denial transcripts: five additive keys absorbed (`toolDenialKind`, `session_id`, `pendingBackgroundAgentCount`, and the `dangerouslyDisableSandbox`/`staleRecovered` sidecar keys; each documented in its section below), no structural changes. Re-validated on 2.1.212 by drift probe (all six probes exercised and parsed): one new record type, `file-history-delta` (skip-listed; see the skip table), plus additive keys `effort` (assistant envelope), `gitOperation`/`backgroundCwdHint` (Bash sidecar), and `totalFiles` (Grep sidecar); the same reconciliation absorbed `imagePasteIds`/`interruptedMessageId` (user envelope, 2.1.205-era interactive sessions) from the local corpus.
+Source: exhaustive scan of 33 local JSONL transcripts (4,220 records, 0 parse errors) under `~/.claude/projects/`, harness versions 2.1.153, 2.1.177, 2.1.187, 2.1.197. Re-validated on 2.1.204 by a clean drift probe (all six probes exercised and parsed; vocabulary unchanged against the baseline). Re-validated on 2.1.205 by baseline reconciliation over the local corpus, triggered by `drift scan` flagging tool-denial transcripts: five additive keys absorbed (`toolDenialKind`, `session_id`, `pendingBackgroundAgentCount`, and the `dangerouslyDisableSandbox`/`staleRecovered` sidecar keys; each documented in its section below), no structural changes. Re-validated on 2.1.212 by drift probe (all six probes exercised and parsed): one new record type, `file-history-delta` (skip-listed; see the skip table), plus additive keys `effort` (assistant envelope), `gitOperation`/`backgroundCwdHint` (Bash sidecar), and `totalFiles` (Grep sidecar); the same reconciliation absorbed `imagePasteIds`/`interruptedMessageId` (user envelope, 2.1.205-era interactive sessions) from the local corpus. Re-validated on 2.1.231 by drift probe (all six probes exercised and parsed; probe vocabulary unchanged); the local-corpus reconciliation that followed surfaced one new record type, `pr-link` (observed from 2.1.220: session-to-PR linkage written when a session creates or attaches to a GitHub PR — keys `sessionId`, `prNumber`, `prUrl`, `prRepository`, `timestamp`; no model-visible content, skip-listed), plus additive corpus keys (`attachment.hookEvent`/`hookName`/`imagePasteIds`/`text`/`toolUseID`, `backup.realParentDir`, system `choice`/`persistedAsDefault`, user `classifierMetaLines`, and ScheduleWakeup sidecar keys). The regenerated baseline also dropped vocabulary whose transcripts have aged out of the local corpus (e.g. the `SendMessage`/`TaskOutput` tool names, system `error.*` retry keys, `document` content blocks); the adapter still parses those shapes, and their reappearance would scan as additive drift, flagging for re-validation.
 
 This grounds the `session` schema in what Claude Code actually writes, and records the normalization rules the `harness/claudecode` adapter must implement. Numbers below are from this sample; they describe presence and shape, not guarantees.
 
@@ -35,6 +35,7 @@ Ten `type` values observed, in two clear families.
 | `file-history-snapshot` | 196 | Checkpointing metadata for file rollback |
 | `file-history-delta` | — | Per-file backup record for the rollback feature (2.1.212): `messageId`, `snapshotMessageId`, `trackingPath`, `backup{backupFileName (nullable), version, backupTime}`, `timestamp`. No `sessionId`, like `file-history-snapshot` |
 | `queue-operation` | 40 | Prompt queue enqueue/dequeue/remove |
+| `pr-link` | — | Session-to-PR linkage (2.1.220): `sessionId`, `prNumber`, `prUrl`, `prRepository`, `timestamp`. Written when a session creates or attaches to a GitHub PR; backs `--from-pr` resume |
 
 These carry no model-visible content. Proposal: exclude from the event stream as an *explicit, enumerated* skip list, with counts surfaced in a parse report so nothing is silently dropped. Any `type` outside the known list is an error (or an `unknown` event in permissive mode).
 
@@ -120,7 +121,7 @@ To handle defensively (loud error or verified mapping once fixtures exist): comp
 | `assistant` `tool_use` block | `tool_call` | `tool_call` | Full input inline |
 | `user` `tool_result` block | `tool_result` | `tool_call_update` | + optional `toolUseResult` enrichment |
 | `system` record | `system` | none (extension) | Subtype preserved |
-| UI state records (6 types) | skip list | none | Counted in parse report |
+| UI state records (8 types) | skip list | none | Counted in parse report |
 | Anything else | error / `unknown` | none | Loud by default |
 
 Extension fields everywhere: timestamps, `uuid`/`parentUuid` threading, source line provenance, sidechain identity, usage beyond the OTel pair.

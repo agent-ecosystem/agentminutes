@@ -41,6 +41,7 @@ var skipTypes = map[string]bool{
 	"permission-mode":       true,
 	"ai-title":              true,
 	"last-prompt":           true,
+	"pr-link":               true,
 	"file-history-snapshot": true,
 	"file-history-delta":    true,
 	"queue-operation":       true,

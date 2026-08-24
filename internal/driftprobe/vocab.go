@@ -76,7 +76,11 @@ var vocabConfigs = map[harness.ID]vocabConfig{
 	},
 	harness.Codex: {
 		discriminators: map[string][]string{
-			"event_msg":     {"payload.type"},
+			// payload.item.type/.kind: the 0.149+ item_completed stream
+			// hides its churn in the typed item (FileChange, Extension of
+			// kind web.search, ...), and the promotion transforms match on
+			// exactly those values.
+			"event_msg":     {"payload.type", "payload.item.type", "payload.item.kind"},
 			"response_item": {"payload.type", "payload.name"},
 		},
 	},

@@ -140,6 +140,54 @@ func TestAccumulator(t *testing.T) {
 	}
 }
 
+// TestTotalPromptTokensConventions pins the derived comparable total:
+// Anthropic-style disjoint input fields sum, OpenAI-style input_tokens is
+// already the total, and an unknown harness derives nothing. The derived
+// field lands on session totals only, never on per-message usage.
+func TestTotalPromptTokensConventions(t *testing.T) {
+	cases := []struct {
+		harness string
+		want    int64
+	}{
+		{"claude-code", 450}, // 300 input + 100 read + 50 creation, disjoint
+		{"codex", 300},       // input is already the total prompt
+		{"some-future-harness", 0},
+	}
+	for _, tc := range cases {
+		acc := NewAccumulator()
+		events := []Event{
+			{Kind: KindSessionMeta, SessionMeta: &Meta{Harness: tc.harness, SessionID: "s-1"}},
+			{Kind: KindAssistantMessage, MessageID: "m1", AssistantMessage: &AssistantMessage{
+				Usage: &TokenUsage{InputTokens: 100, OutputTokens: 10, CacheReadInputTokens: 60, CacheCreationInputTokens: 20},
+			}},
+			{Kind: KindAssistantMessage, MessageID: "m2", AssistantMessage: &AssistantMessage{
+				Usage: &TokenUsage{InputTokens: 200, OutputTokens: 20, CacheReadInputTokens: 40, CacheCreationInputTokens: 30},
+			}},
+		}
+		for i, ev := range events {
+			if err := acc.Add(ev); err != nil {
+				t.Fatalf("%s: Add(%d): %v", tc.harness, i, err)
+			}
+		}
+		s := acc.Session()
+		if s.Totals == nil || s.Totals.TotalPromptTokens != tc.want {
+			t.Errorf("%s: TotalPromptTokens = %+v, want %d", tc.harness, s.Totals, tc.want)
+		}
+		for i := range s.Events {
+			if am := s.Events[i].AssistantMessage; am != nil && am.Usage.TotalPromptTokens != 0 {
+				t.Errorf("%s: per-message usage carries derived total %d, want 0", tc.harness, am.Usage.TotalPromptTokens)
+			}
+		}
+	}
+
+	// Add never sums the derived field: it is recomputed, not accumulated.
+	u := TokenUsage{TotalPromptTokens: 5}
+	u.Add(TokenUsage{InputTokens: 1, TotalPromptTokens: 7})
+	if u.TotalPromptTokens != 5 {
+		t.Errorf("Add summed TotalPromptTokens: %d, want 5", u.TotalPromptTokens)
+	}
+}
+
 func TestAccumulatorRejectsDuplicateMeta(t *testing.T) {
 	acc := NewAccumulator()
 	if err := acc.Add(metaEvent()); err != nil {

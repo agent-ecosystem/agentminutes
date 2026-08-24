@@ -14,3 +14,4 @@
 {"parentUuid":"u-4","isSidechain":false,"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_ghost","content":"late result","is_error":true}]},"toolDenialKind":"user-rejected","uuid":"u-5","timestamp":"2026-07-19T10:00:11.000Z","userType":"external","entrypoint":"cli","cwd":"/tmp/exp","sessionId":"s-fixture","version":"2.1.205","gitBranch":"main"}
 {"type":"file-history-delta","messageId":"a-3","snapshotMessageId":"m-x","trackingPath":"doc.md","backup":{"backupFileName":"1a2b3c4d5e6f7a8b@v1","version":1,"backupTime":"2026-07-19T10:00:11.500Z"},"timestamp":"2026-07-19T10:00:11.500Z"}
 {"type":"ai-title","aiTitle":"Fixture Session","sessionId":"s-fixture"}
+{"type":"pr-link","sessionId":"s-fixture","prNumber":7,"prUrl":"https://github.com/example/exp/pull/7","prRepository":"example/exp","timestamp":"2026-07-19T10:00:12.000Z"}

@@ -28,17 +28,21 @@ field is set per event, matching its `kind`:
   follow OTel GenAI semantic conventions. Every field in the schema is
   tagged with its provenance (`acp`, `otel`, or `ext`), enforced by a
   test, so the mapping cannot rot.
-- **Token fields carry provider semantics.** The field names are
-  shared, and the meanings follow the provider: OpenAI-style usage
-  reports `input_tokens` as the total prompt with cached tokens as a
-  subset, while Anthropic-style usage reports it as only the uncached
-  remainder alongside separate cache read and write fields. Adapters
-  preserve what the harness recorded, so cross-harness cost comparisons
-  should sum the cache-aware fields rather than compare `input_tokens`
-  directly. See the
+- **Token fields carry provider semantics; totals carry a derived
+  comparable field.** The field names are shared, and the meanings
+  follow the provider: OpenAI-style usage (codex) reports
+  `input_tokens` as the total prompt with the cache fields as subsets
+  of it (the native `cache_write_input_tokens` maps to
+  `cache_creation_input_tokens`), while Anthropic-style usage
+  (claude-code) reports it as only the uncached remainder alongside
+  disjoint cache read and creation fields. Adapters preserve what the
+  harness recorded, so `input_tokens` is never directly comparable
+  across harnesses. Session totals therefore also carry
+  `total_prompt_tokens`, derived from each harness's documented
+  convention: that is the number to compare. See the
   [worked comparison](/docs/example-comparison/#what-the-comparison-shows)
-  for a real case where the naive reading is wrong by four orders of
-  magnitude.
+  for a real case where the naive `input_tokens` reading is wrong by
+  four orders of magnitude.
 - **`assistant_message` is the accounting anchor.** Harnesses may split
   one API message across many records with usage written as a growing
   snapshot. The adapter folds them and takes the final snapshot. Exactly

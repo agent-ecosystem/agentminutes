@@ -63,7 +63,8 @@ the event list trimmed:
     "input_tokens": 3159,
     "output_tokens": 4,
     "cache_read_input_tokens": 15021,
-    "cache_creation_input_tokens": 3764
+    "cache_creation_input_tokens": 3764,
+    "total_prompt_tokens": 21944
   },
   "report": {
     "skipped_records": {
@@ -199,7 +200,8 @@ This is the complete summary for the same minimal session shown under
     "input_tokens": 3159,
     "output_tokens": 4,
     "cache_read_input_tokens": 15021,
-    "cache_creation_input_tokens": 3764
+    "cache_creation_input_tokens": 3764,
+    "total_prompt_tokens": 21944
   },
   "start_time": "2026-07-16T14:45:41.182Z",
   "end_time": "2026-07-16T14:45:46.5Z",
@@ -211,6 +213,11 @@ This is the complete summary for the same minimal session shown under
 Even this trivial session shows the shape of the analysis: the harness
 injected three `system` attachments (skill listings and tool deltas)
 before the model said a word, and cache reads dwarf fresh input tokens.
+The token fields keep each provider's own semantics, so
+`totals.total_prompt_tokens` is the derived, cross-harness comparable
+prompt size; see the
+[schema page](/docs/schema/#points-worth-knowing) for the trap it
+resolves.
 `models` lists the models observed on assistant messages in
 first-observed order, so more than one entry means the serving model
 changed mid-session.
@@ -221,6 +228,10 @@ The summary's `system_by_subtype` counts surface actions a harness
 records only as telemetry. Codex 0.144 logs URL fetches solely as
 `web_search_end` events, and 0.144.6 records file edits solely as
 `patch_apply_end`, so they appear there rather than as tool calls.
+Codex 0.149 drops those subtypes and records the same actions only as
+`item_completed` records (a `FileChange` item for the edit, a
+web-search `Extension` item for the fetch); the same promotions cover
+both vocabularies, so the flags below work unchanged across versions.
 
 This matters whenever the question you're asking is about tool behavior.
 Take a cross-harness comparison like "how many file edits did each

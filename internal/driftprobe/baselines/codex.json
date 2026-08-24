@@ -1,9 +1,10 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.146.0",
+  "generated_from_version": "0.149.1",
   "record_types": {
     "event_msg": {
       "keys": [
+        "ordinal",
         "payload",
         "payload.action",
         "payload.audio",
@@ -11,9 +12,11 @@
         "payload.changes",
         "payload.collaboration_mode_kind",
         "payload.completed_at",
+        "payload.completed_at_ms",
         "payload.duration_ms",
         "payload.images",
         "payload.info",
+        "payload.item",
         "payload.last_agent_message",
         "payload.local_audio",
         "payload.local_images",
@@ -24,11 +27,13 @@
         "payload.query",
         "payload.rate_limits",
         "payload.started_at",
+        "payload.started_at_ms",
         "payload.status",
         "payload.stderr",
         "payload.stdout",
         "payload.success",
         "payload.text_elements",
+        "payload.thread_id",
         "payload.thread_settings",
         "payload.time_to_first_token_ms",
         "payload.turn_id",
@@ -37,8 +42,20 @@
         "type"
       ],
       "discriminators": {
+        "payload.item.kind": [
+          "web.search"
+        ],
+        "payload.item.type": [
+          "AgentMessage",
+          "CommandExecution",
+          "Extension",
+          "FileChange",
+          "Reasoning",
+          "UserMessage"
+        ],
         "payload.type": [
           "agent_message",
+          "item_completed",
           "patch_apply_end",
           "task_complete",
           "task_started",
@@ -51,6 +68,7 @@
     },
     "response_item": {
       "keys": [
+        "ordinal",
         "payload",
         "payload.action",
         "payload.call_id",
@@ -84,6 +102,7 @@
     },
     "session_meta": {
       "keys": [
+        "ordinal",
         "payload",
         "payload.base_instructions",
         "payload.cli_version",
@@ -105,6 +124,7 @@
     },
     "turn_context": {
       "keys": [
+        "ordinal",
         "payload",
         "payload.approval_policy",
         "payload.approvals_reviewer",
@@ -133,6 +153,7 @@
     },
     "world_state": {
       "keys": [
+        "ordinal",
         "payload",
         "payload.full",
         "payload.state",

@@ -82,8 +82,12 @@ func TestFixtureMetaTotalsReport(t *testing.T) {
 	if s.Totals == nil || s.Totals.CacheReadInputTokens != 250 || s.Totals.CacheCreationInputTokens != 10 {
 		t.Errorf("Totals cache = %+v, want read 250 / creation 10", s.Totals)
 	}
+	// Anthropic-style disjoint input fields: 400 + 250 + 10.
+	if s.Totals != nil && s.Totals.TotalPromptTokens != 660 {
+		t.Errorf("TotalPromptTokens = %d, want 660", s.Totals.TotalPromptTokens)
+	}
 
-	wantSkips := map[string]int{"mode": 1, "file-history-snapshot": 1, "file-history-delta": 1, "ai-title": 1}
+	wantSkips := map[string]int{"mode": 1, "file-history-snapshot": 1, "file-history-delta": 1, "ai-title": 1, "pr-link": 1}
 	for k, n := range wantSkips {
 		if s.Report.SkippedRecords[k] != n {
 			t.Errorf("SkippedRecords[%s] = %d, want %d", k, s.Report.SkippedRecords[k], n)

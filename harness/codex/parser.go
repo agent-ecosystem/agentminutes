@@ -601,25 +601,31 @@ func rawFromMaybeJSON(s string) json.RawMessage {
 }
 
 // parseTokenUsage decodes a last_token_usage object, promoting the core
-// counts. reasoning_output_tokens and total_tokens are not promoted (they
-// remain in the token_count system events) because pooled usage cannot sum
-// Extra fields.
+// counts. The cache fields keep Codex's own semantics: cached_input_tokens
+// and cache_write_input_tokens are subsets of input_tokens (which is
+// already the total prompt), unlike Anthropic-style disjoint fields — see
+// the TokenUsage field docs; totals carry the convention-normalized
+// total_prompt_tokens. reasoning_output_tokens and total_tokens are not
+// promoted (they remain in the token_count system events) because pooled
+// usage cannot sum Extra fields.
 func parseTokenUsage(raw json.RawMessage) (*session.TokenUsage, error) {
 	raw = bytes.TrimSpace(raw)
 	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
 		return nil, nil
 	}
 	var u struct {
-		InputTokens       int64 `json:"input_tokens"`
-		CachedInputTokens int64 `json:"cached_input_tokens"`
-		OutputTokens      int64 `json:"output_tokens"`
+		InputTokens           int64 `json:"input_tokens"`
+		CachedInputTokens     int64 `json:"cached_input_tokens"`
+		CacheWriteInputTokens int64 `json:"cache_write_input_tokens"`
+		OutputTokens          int64 `json:"output_tokens"`
 	}
 	if err := json.Unmarshal(raw, &u); err != nil {
 		return nil, err
 	}
 	return &session.TokenUsage{
-		InputTokens:          u.InputTokens,
-		OutputTokens:         u.OutputTokens,
-		CacheReadInputTokens: u.CachedInputTokens,
+		InputTokens:              u.InputTokens,
+		OutputTokens:             u.OutputTokens,
+		CacheReadInputTokens:     u.CachedInputTokens,
+		CacheCreationInputTokens: u.CacheWriteInputTokens,
 	}, nil
 }

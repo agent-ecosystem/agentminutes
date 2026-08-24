@@ -71,7 +71,8 @@ nothing.
 | Harness-origin user messages | 0 | 1 |
 | `totals.input_tokens`, as recorded | 4 | 46,480 |
 | Cache read tokens | 36,963 | 34,589 |
-| Total prompt tokens processed | 43,873 | 46,480 |
+| Cache write tokens | 6,906 | 11,879 |
+| `totals.total_prompt_tokens` (derived) | 43,873 | 46,480 |
 | Output tokens | 104 | 360 |
 | API calls (usage snapshots) | 2 | 4 |
 | Wall time | 4.0 s | 10.0 s |
@@ -92,7 +93,8 @@ The trimmed `stats` fields behind the interesting rows:
     "input_tokens": 4,
     "output_tokens": 104,
     "cache_read_input_tokens": 36963,
-    "cache_creation_input_tokens": 6906
+    "cache_creation_input_tokens": 6906,
+    "total_prompt_tokens": 43873
   }
 }
 ```
@@ -114,7 +116,9 @@ The trimmed `stats` fields behind the interesting rows:
   "totals": {
     "input_tokens": 46480,
     "output_tokens": 360,
-    "cache_read_input_tokens": 34589
+    "cache_read_input_tokens": 34589,
+    "cache_creation_input_tokens": 11879,
+    "total_prompt_tokens": 46480
   }
 }
 ```
@@ -146,10 +150,12 @@ The trimmed `stats` fields behind the interesting rows:
   processed 4 + 6,906 + 36,963 = 43,873 total prompt tokens against
   Codex's 46,480, both overwhelmingly served from cache. Adapters
   preserve what the harness recorded rather than reinterpreting it, so
-  cross-harness cost comparisons must sum the cache-aware fields, never
-  compare `input_tokens` directly. (The native Codex record also
-  carries `cache_write_input_tokens: 11879`; `provenance` plus
-  `--keep-raw` is how you get at fields like that.)
+  the per-field numbers keep their provider meanings; the schema now
+  does the alignment for you in `totals.total_prompt_tokens`, which is
+  exactly this arithmetic applied per convention. Codex's native
+  `cache_write_input_tokens` (11,879 here) also lands in
+  `cache_creation_input_tokens` now, so cache-write accounting no
+  longer requires digging it out of the raw record with `--keep-raw`.
 - **Behavior differences survive identical outcomes.** Same file, same
   `done`, and one harness took 2.5x the wall time and 3x the output
   tokens of the other on this tiny task. Which trade you prefer is your

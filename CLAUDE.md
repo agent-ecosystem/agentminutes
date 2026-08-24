@@ -58,15 +58,19 @@ Docs that move with the code:
   re-capture rather than hand-editing numbers.
 - `content/docs/schema.md`: the event-kind table mirrors `session/`
   types, and the schema revision appears inline. The "token fields
-  carry provider semantics" bullet ties to issues #1/#2; if token
-  normalization or the codex cache_write mapping lands, update it
-  together with `example-comparison.md`'s token bullet (they document
-  the same trap from two angles).
+  carry provider semantics" bullet documents the per-provider
+  `input_tokens` conventions, the codex cache_write mapping, and the
+  derived `totals.total_prompt_tokens` (landed for issues #1/#2); it
+  moves together with `example-comparison.md`'s token bullet (they
+  document the same trap from two angles).
 - `content/docs/example-comparison.md`: a captured same-task run
   (claude-code 2.1.212 vs codex 0.146.0), including token arithmetic
-  tied to current provider usage semantics. Historical capture is fine
-  as-is; re-capture if the stats shape changes or the token issues
-  resolve.
+  tied to current provider usage semantics. The stats blocks were
+  refreshed when `total_prompt_tokens` and the codex cache_write
+  mapping landed: the codex block is re-run output over the surviving
+  source transcript (`~/.codex/sessions/2026/08/02/rollout-*-4eb8a22861a9.jsonl`);
+  the claude-code source transcript is gone, so a future stats-shape
+  change there means re-capturing from a fresh run.
 - `content/docs/discovery.md`: the resumed-turns walkthrough is a
   captured two-turn claude-code run; stable unless resume semantics
   change.

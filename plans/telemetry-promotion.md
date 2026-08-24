@@ -3,7 +3,16 @@
 Status: designed and built. Grew out of the drift-probe finding
 that Codex 0.144.1 records URL fetches only as `event_msg` telemetry
 (`web_search_end`), leaving retrieval invisible to tool metrics (see the
-codex format inventory).
+codex format inventory). Updated for Codex 0.149.1, where the
+`web_search_end`/`patch_apply_end` telemetry is gone and the same actions
+are recorded only in the new `event_msg` `item_completed` stream: each
+transform now matches both its original subtype and the corresponding
+typed item (`FileChange` for the edit, `Extension` of kind `web.search`
+for the fetch), with a shape-specific `promoted_from` marker
+(`event_msg/item_completed/FileChange`,
+`event_msg/item_completed/Extension`). Transform names and the CLI
+`--promote` values are unchanged: the name identifies the semantic
+action, not the vocabulary it is recovered from.
 
 ## The problem
 

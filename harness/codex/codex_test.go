@@ -75,6 +75,10 @@ func TestFixtureMetaTotalsReport(t *testing.T) {
 		s.Totals.CacheReadInputTokens != 5000 {
 		t.Errorf("Totals = %+v, want 21000/230/5000", s.Totals)
 	}
+	// Codex input_tokens is already the total prompt.
+	if s.Totals != nil && s.Totals.TotalPromptTokens != 21000 {
+		t.Errorf("TotalPromptTokens = %d, want 21000", s.Totals.TotalPromptTokens)
+	}
 
 	wantSkips := map[string]int{"event_msg/user_message": 1, "event_msg/agent_message": 1}
 	for k, n := range wantSkips {

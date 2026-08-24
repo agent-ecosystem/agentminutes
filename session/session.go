@@ -141,6 +141,9 @@ func (a *Accumulator) Session() *Session {
 	if a.meta != nil {
 		s.Meta = *a.meta
 	}
+	if s.Totals != nil {
+		s.Totals.TotalPromptTokens = totalPromptTokens(s.Meta.Harness, s.Totals)
+	}
 	if len(a.skipped) > 0 {
 		s.Report.SkippedRecords = a.skipped
 	}

@@ -9,9 +9,9 @@ import (
 // harness lists; update the entry when an adapter's inventory is
 // re-validated against a newer release.
 var lastValidated = map[ID]string{
-	Antigravity: "1.1.10",
-	ClaudeCode:  "2.1.212",
-	Codex:       "0.146.0",
+	Antigravity: "1.1.19",
+	ClaudeCode:  "2.1.231",
+	Codex:       "0.149.1",
 }
 
 // LastValidated returns the newest release of the harness whose transcript

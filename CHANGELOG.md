@@ -6,7 +6,64 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Added
+
+- Session totals carry a derived `total_prompt_tokens`: the
+  convention-normalized total prompt size, comparable across harnesses
+  by construction (Anthropic-style disjoint input fields sum;
+  OpenAI-style `input_tokens` is already the total). The per-provider
+  fields stay faithful to what the harness recorded; the new field is
+  computed by the accumulator, tagged as a derived extension, and
+  absent when a harness's convention is unknown. Additive extension
+  field, so `SchemaVersion` stays 0.1.0. Resolves the cross-provider
+  `input_tokens` comparability trap (#2).
+
+### Fixed
+
+- The codex adapter promotes `cache_write_input_tokens` into
+  `cache_creation_input_tokens` instead of dropping it, so normalized
+  codex sessions report cache writes without `--keep-raw` (#1). The
+  field keeps codex's subset-of-`input_tokens` semantics, now
+  documented on the schema's cache fields; `total_prompt_tokens` is the
+  cross-harness comparable number.
+
+- The npm wrapper ships the `agentminutes-win32-x64` platform package
+  again (restored in the build matrix, `SUPPORTED`, and
+  `optionalDependencies`): npm support resolved the registry naming
+  block that forced its removal, so Windows x64 installs no longer need
+  the PyPI package or a manually downloaded release binary.
+
 ### Changed
+
+- Revalidated all three adapters by drift probe and local-corpus
+  reconciliation; `harness.LastValidated` moved to antigravity 1.1.19,
+  claude-code 2.1.231, and codex 0.149.1, with baselines re-stamped or
+  regenerated to match.
+- Codex 0.149.1 format drift reconciled: every rollout record gained an
+  `ordinal`, and the `user_message`/`agent_message`/`patch_apply_end`/
+  `web_search_end` event_msg subtypes were replaced by an
+  `item_completed` stream carrying typed items (UserMessage,
+  AgentMessage, CommandExecution, FileChange, Reasoning, Extension).
+  `item_completed` records parse as system events (the existing
+  unknown-subtype rule); the codex baseline now tracks
+  `payload.item.type`/`payload.item.kind` as discriminators, and a new
+  fixture pins the 0.149.1 shape.
+- `codex.PromotePatchApply` and `codex.PromoteWebSearch` now also match
+  the 0.149.1 `item_completed` shapes (a FileChange item promotes to the
+  edit pair, an Extension item of kind web.search to the fetch pair),
+  since the telemetry subtypes they matched are gone from 0.149.1
+  transcripts; without this the transforms silently no-op there and
+  edits/fetches are invisible to tool metrics. New markers:
+  `event_msg/item_completed/FileChange` and
+  `event_msg/item_completed/Extension`. Transform names and
+  `--promote` values are unchanged.
+- Claude Code sessions linked to a GitHub PR write a new `pr-link`
+  record (observed from 2.1.220; backs `--from-pr` resume). It is
+  harness bookkeeping with no model-visible content, so the adapter now
+  skip-lists it (counted in the parse report) instead of failing the
+  strict parse with "unrecognized record type".
+- Bumped the agentsummons dependency to v0.3.2, whose flag surface was
+  revalidated against the same harness releases.
 
 - GitHub release notes now come from CHANGELOG.md: the release workflow
   extracts the tag's section and fails the release if it is missing
