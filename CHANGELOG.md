@@ -6,6 +6,8 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-24
+
 ### Added
 
 - Session totals carry a derived `total_prompt_tokens`: the
@@ -129,7 +131,8 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
   line accounting, loud parse failures, and transcript discovery via
   per-harness locators.
 
-[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/agent-ecosystem/agentminutes/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.1.0...v0.2.0
