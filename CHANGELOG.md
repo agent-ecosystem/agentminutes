@@ -6,6 +6,8 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-13
+
 ### Added
 
 - Subagent sessions are now first-class for all three harnesses,
@@ -178,7 +180,8 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
   line accounting, loud parse failures, and transcript discovery via
   per-harness locators.
 
-[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/agent-ecosystem/agentminutes/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/agent-ecosystem/agentminutes/compare/v0.3.0...v0.3.1
