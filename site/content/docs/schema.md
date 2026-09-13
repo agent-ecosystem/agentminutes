@@ -42,7 +42,9 @@ field is set per event, matching its `kind`:
   convention: that is the number to compare. See the
   [worked comparison](/docs/example-comparison/#what-the-comparison-shows)
   for a real case where the naive `input_tokens` reading is wrong by
-  four orders of magnitude.
+  four orders of magnitude, and
+  [Comparing Token Counts](/docs/token-comparison/) for the full field
+  guide (caches, reasoning tokens, missing usage, and cost caveats).
 - **`assistant_message` is the accounting anchor.** Harnesses may split
   one API message across many records with usage written as a growing
   snapshot. The adapter folds them and takes the final snapshot. Exactly

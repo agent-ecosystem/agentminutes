@@ -156,6 +156,8 @@ The trimmed `stats` fields behind the interesting rows:
   `cache_write_input_tokens` (11,879 here) also lands in
   `cache_creation_input_tokens` now, so cache-write accounting no
   longer requires digging it out of the raw record with `--keep-raw`.
+  [Comparing Token Counts](/docs/token-comparison/) generalizes this
+  row into the full set of rules for cross-harness token analysis.
 - **Behavior differences survive identical outcomes.** Same file, same
   `done`, and one harness took 2.5x the wall time and 3x the output
   tokens of the other on this tiny task. Which trade you prefer is your

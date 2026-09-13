@@ -28,28 +28,28 @@ the event list trimmed:
   "agentminutes_schema": "0.1.0",
   "meta": {
     "harness": "claude-code",
-    "harness_version": "2.1.204",
-    "session_id": "739cfcc1-2863-4b77-bb48-cd030e55969d",
+    "harness_version": "2.1.236",
+    "session_id": "18870970-e221-4cc3-8ea9-39bcbffa2ad7",
     "cwd": "/Users/me/my-project",
     "git_branch": "main"
   },
   "events": [
     {
       "kind": "session_meta",
-      "timestamp": "2026-07-16T14:45:41.182Z",
+      "timestamp": "2026-09-13T16:42:41.925Z",
       "provenance": { "line": 3, "end_line": 3 },
       "session_meta": {
         "harness": "claude-code",
-        "harness_version": "2.1.204",
-        "session_id": "739cfcc1-2863-4b77-bb48-cd030e55969d",
+        "harness_version": "2.1.236",
+        "session_id": "18870970-e221-4cc3-8ea9-39bcbffa2ad7",
         "cwd": "/Users/me/my-project",
         "git_branch": "main"
       }
     },
     {
       "kind": "user_message",
-      "timestamp": "2026-07-16T14:45:41.182Z",
-      "id": "3885928d-e53c-46c8-a89c-d61e196924ae",
+      "timestamp": "2026-09-13T16:42:41.925Z",
+      "id": "8d62c944-f259-40e1-ae99-6497fcc580be",
       "provenance": { "line": 3, "end_line": 3 },
       "user_message": {
         "origin": "human",
@@ -60,15 +60,16 @@ the event list trimmed:
     }
   ],
   "totals": {
-    "input_tokens": 3159,
+    "input_tokens": 2,
     "output_tokens": 4,
-    "cache_read_input_tokens": 15021,
-    "cache_creation_input_tokens": 3764,
-    "total_prompt_tokens": 21944
+    "cache_read_input_tokens": 16015,
+    "cache_creation_input_tokens": 6792,
+    "total_prompt_tokens": 22809
   },
   "report": {
     "skipped_records": {
       "ai-title": 1,
+      "atis-latch": 1,
       "last-prompt": 1,
       "queue-operation": 2
     }
@@ -76,7 +77,7 @@ the event list trimmed:
 }
 ```
 
-Note the `report`: the four skipped records are Claude Code UI
+Note the `report`: the five skipped records are Claude Code UI
 bookkeeping with no model-visible content, and they're counted rather
 than dropped. Between events, skips, and errors, every line of the
 transcript is accounted for.
@@ -97,8 +98,9 @@ user_message
 system
 system
 system
+system
 assistant_message
-agentminutes: 6 events, 4 skipped records (ai-title 1, last-prompt 1, queue-operation 2)
+agentminutes: 7 events, 5 skipped records (ai-title 1, atis-latch 1, last-prompt 1, queue-operation 2)
 ```
 
 The last line is the stderr summary; it stays out of your pipe.
@@ -142,8 +144,8 @@ The default output is one transcript path per line on stdout, with an
 accounting summary on stderr:
 
 ```sh
-$ agentminutes sessions --harness claude-code --session-id 739cfcc1-2863-4b77-bb48-cd030e55969d
-~/.claude/projects/my-project/739cfcc1-2863-4b77-bb48-cd030e55969d.jsonl
+$ agentminutes sessions --harness claude-code --session-id 18870970-e221-4cc3-8ea9-39bcbffa2ad7
+~/.claude/projects/my-project/18870970-e221-4cc3-8ea9-39bcbffa2ad7.jsonl
 agentminutes: 1 session, 0 filtered out, 0 skipped files, 0 errors
 ```
 
@@ -178,11 +180,11 @@ This is the complete summary for the same minimal session shown under
 
 ```json
 {
-  "events": 6,
+  "events": 7,
   "event_counts": {
     "assistant_message": 1,
     "session_meta": 1,
-    "system": 3,
+    "system": 4,
     "user_message": 1
   },
   "user_messages": 1,
@@ -191,27 +193,28 @@ This is the complete summary for the same minimal session shown under
   "system_by_subtype": {
     "attachment/agent_listing_delta": 1,
     "attachment/deferred_tools_delta": 1,
-    "attachment/skill_listing": 1
+    "attachment/skill_listing": 1,
+    "attachment/total_tokens_reminder": 1
   },
   "models": [
     "claude-fable-5"
   ],
   "totals": {
-    "input_tokens": 3159,
+    "input_tokens": 2,
     "output_tokens": 4,
-    "cache_read_input_tokens": 15021,
-    "cache_creation_input_tokens": 3764,
-    "total_prompt_tokens": 21944
+    "cache_read_input_tokens": 16015,
+    "cache_creation_input_tokens": 6792,
+    "total_prompt_tokens": 22809
   },
-  "start_time": "2026-07-16T14:45:41.182Z",
-  "end_time": "2026-07-16T14:45:46.5Z",
-  "wall_time_ms": 5318,
+  "start_time": "2026-09-13T16:42:41.925Z",
+  "end_time": "2026-09-13T16:42:43.603Z",
+  "wall_time_ms": 1678,
   "final_answer": "pong"
 }
 ```
 
 Even this trivial session shows the shape of the analysis: the harness
-injected three `system` attachments (skill listings and tool deltas)
+injected four `system` attachments (skill listings, tool deltas, and a token budget reminder)
 before the model said a word, and cache reads dwarf fresh input tokens.
 The token fields keep each provider's own semantics, so
 `totals.total_prompt_tokens` is the derived, cross-harness comparable
@@ -329,7 +332,7 @@ the transcript happened not to contain:
 ```sh
 $ agentminutes drift scan session.jsonl
 session.jsonl: claude-code
-  info: baseline record types not exercised: [file-history-delta file-history-snapshot mode permission-mode system]
+  info: baseline record types not exercised: [bridge-session file-history-delta file-history-snapshot frame-link mode permission-mode pr-link system]
   clean: matches the claude-code baseline
 ```
 

@@ -51,7 +51,7 @@ Docs that move with the code:
 
 - `content/docs/cli.md`: every example is captured real output. The
   convert/stats/sessions examples come from a minimal claude-code
-  session (harness 2.1.204, `agentminutes_schema` "0.1.0"); the
+  session (harness 2.1.236, `agentminutes_schema` "0.1.0"); the
   promotion example runs `harness/codex/testdata/rollout.jsonl` with
   and without `--promote codex:patch-apply`. When output shapes,
   SchemaVersion, or stats fields change, re-run the commands and
@@ -63,6 +63,13 @@ Docs that move with the code:
   derived `totals.total_prompt_tokens` (landed for issues #1/#2); it
   moves together with `example-comparison.md`'s token bullet (they
   document the same trap from two angles).
+- `content/docs/token-comparison.md`: the cross-harness token field
+  guide. It restates the per-provider `input_tokens` conventions, the
+  `total_prompt_tokens` derivation, and the usage-source table (which
+  names codex's `token_usage_record` handling), so it moves with
+  `session/` usage semantics and with `schema.md`'s token bullet; its
+  numbers reference `example-comparison.md`'s captured run rather than
+  carrying captures of its own.
 - `content/docs/example-comparison.md`: a captured same-task run
   (claude-code 2.1.212 vs codex 0.146.0), including token arithmetic
   tied to current provider usage semantics. The stats blocks were
