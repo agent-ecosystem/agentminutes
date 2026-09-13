@@ -10,7 +10,7 @@ field is set per event, matching its `kind`:
 
 | Kind | Payload | ACP analog |
 | --- | --- | --- |
-| `session_meta` | Session identity: harness, version, session ID, cwd | none (extension) |
+| `session_meta` | Session identity: harness, version, session ID, cwd, subagent markers | none (extension) |
 | `user_message` | User-role content, with an origin marker: `human` or `harness` | `user_message_chunk` |
 | `assistant_message` | One complete assistant API message | `agent_message_chunk` |
 | `thinking` | Extended-thinking block | `agent_thought_chunk` |
@@ -52,6 +52,15 @@ field is set per event, matching its `kind`:
   its content became `thinking` or `tool_call` events, so token totals
   are always derivable. Events from the same API message share a
   `message_id`.
+- **One session record covers one transcript; a task can span
+  several.** A harness that delegates to subagents writes each
+  subagent conversation as its own transcript, and each parses to its
+  own session with its own `totals`. Where the harness records it
+  (claude-code, codex), a subagent's meta shares the parent's
+  `session_id` and carries `subagent_id` with `is_subagent: true`, so
+  grouping a task is a `session_id` match. Task-scope analysis must
+  gather all of a session's transcripts first; see
+  [Subagents](/docs/subagents/).
 - **`tool_call` and `tool_result` stay separate, in stream order.**
   Ordering is data. Interleaving, parallel tool execution, and retries
   are visible in the sequence. `Session.ToolInteractions()` provides the

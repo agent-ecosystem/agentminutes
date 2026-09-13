@@ -48,7 +48,10 @@ even when a harness splits one API message across many records. That
 makes "what did this task cost on each harness?" a query instead of a
 spreadsheet reconstruction. The `models` list also exposes mid-session
 serving-model changes, which would otherwise skew cost comparisons with
-no visible signal.
+no visible signal. One scope rule: a task that delegated to subagents
+spans several transcripts, each with its own totals, so gather them
+before summing (see [Subagents](/docs/subagents/) and
+[Comparing Token Counts](/docs/token-comparison/)).
 
 ## Debug and audit a run
 
@@ -59,6 +62,20 @@ stream order, and every event's `provenance` points at the exact lines
 in the native transcript that produced it. Sessions that ended in a
 timeout still parse: partial evidence beats no evidence when you're
 archiving failures.
+
+## Trace multi-agent delegation
+
+Every supported harness can now delegate work to subagents, and each
+subagent conversation is a transcript of its own that parses to a
+first-class session. That turns delegation itself into queryable data:
+which tasks spawned subagents, how deep the tree went, what each agent
+was asked, what it did with its own tools, and what share of the
+task's tokens the delegated work consumed. Where the harness records
+it, subagent sessions carry the parent's session ID plus their own
+subagent identity, so reassembling a task is a group-by rather than
+forensics. The recording differs per harness in ways that matter to
+any of these questions; [Subagents](/docs/subagents/) documents each
+one.
 
 ## Watch behavior change across releases
 

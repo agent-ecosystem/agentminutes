@@ -123,6 +123,53 @@ harness's convention is unknown, rather than guessed.
   from the `token_count` system events. If a session's arithmetic looks
   short, check the report and the system events before assuming loss.
 
+## Subagent usage lives in separate transcripts
+
+When a harness spawns subagents, each subagent conversation is its own
+API context with its own usage, recorded in its own transcript: Claude
+Code writes them under `<project>/<session-id>/subagents/`, and Codex
+writes each subagent thread as a sibling rollout file. The parent
+transcript records the delegation calls and the text the subagents
+returned; the tokens the subagents consumed appear only in the
+subagent files. A session's `totals` therefore cover that one
+transcript's API context alone.
+
+The scale of the undercount is easy to underestimate. In a real
+four-subagent session:
+
+| Scope | Prompt tokens | Output tokens |
+| --- | --- | --- |
+| Parent transcript only | 2,622,260 | 49,993 |
+| The four subagent transcripts | 1,519,301 | 48,616 |
+| The whole task | 4,141,561 | 98,609 |
+
+Reading only the parent file undercounts the task's prompt volume by 37
+percent and misses half of its output tokens.
+
+The schema makes the aggregation mechanical rather than forensic: a
+subagent transcript's meta shares the parent's `session_id` and adds
+`subagent_id` and `is_subagent: true`, and
+[discovery](/docs/discovery/) treats the parent and its subagent files
+as one session, so a single `sessions --session-id` call lists every
+transcript the task touched:
+
+```sh
+agentminutes sessions --harness claude-code --session-id "$SESSION" |
+  while read -r t; do
+    agentminutes stats "$t" | jq '.totals.total_prompt_tokens // 0'
+  done | jq -s add
+```
+
+Two caveats. First, decide which scope your metric wants before
+comparing: "what did this conversation cost" (parent only) and "what
+did this task cost" (parent plus subagents) are both legitimate
+questions with answers that differ by large factors. Second, the
+harnesses group differently: Claude Code and Codex both record the
+parent's session id in every subagent transcript, so the recipe above
+works for both (for Codex, gather with a scan rather than
+`--harness codex --session-id`; see [Subagents](/docs/subagents/)),
+while Antigravity records no usage at all, subagent or not.
+
 ## Recipes
 
 Pull the comparable numbers for a set of sessions:

@@ -43,6 +43,24 @@ This scans every supported harness's default root, reads each
 transcript's identity cheaply, and filters by the keys harnesses actually
 record. See [Session Discovery](/docs/discovery/).
 
+## Pick up subagent transcripts
+
+A session that delegated work to subagents is more than one file:
+Claude Code and Codex both write each subagent conversation as its own
+transcript, with its own events and its own token totals.
+Discovery treats them as one session, so a session-ID lookup lists
+every file the task touched, ready to convert together:
+
+```sh
+agentminutes sessions --harness claude-code --session-id "$SESSION" |
+  xargs -n1 agentminutes convert
+```
+
+A parent transcript's totals cover only its own context, so skipping
+the subagent files undercounts the task. See
+[Subagents](/docs/subagents/) for how the files tie together and how
+to aggregate a whole task.
+
 ## Summarize a session
 
 To see a session's behavior at a glance (tool mix, bytes retrieved,

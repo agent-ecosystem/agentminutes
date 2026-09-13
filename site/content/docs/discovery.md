@@ -37,6 +37,44 @@ for _, p := range ref.SubagentPaths { // Claude Code agent-*.jsonl files
 
 For non-default roots, use `agentminutes.LocatorFor(id).Scan(root, opts)`.
 
+## Subagent files belong to their session
+
+A Claude Code session that delegated work to subagents spans several
+files: the parent transcript, plus one transcript per subagent under
+`<session-id>/subagents/` next to it. Discovery treats them as one
+session rather than several. A session-ID lookup returns the parent
+path and every subagent path together (the Go ref's `SubagentPaths`,
+shown above, is the same grouping):
+
+```sh
+$ agentminutes sessions --harness claude-code --session-id 4d51ce48-0e3d-4321-82f5-435769bc5ab4
+~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4.jsonl
+~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a32569d82c684ca51.jsonl
+~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a69749826ce0a9ed8.jsonl
+~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a7578b0c629cb97e7.jsonl
+~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a9966d78dab862c6f.jsonl
+agentminutes: 1 session, 0 filtered out, 0 skipped files, 0 errors
+```
+
+Two edge behaviors are deliberate. A subagent transcript whose parent
+file is missing still surfaces, as a standalone ref, so partial
+archives stay discoverable. And the `.meta.json` sidecars next to the
+subagent transcripts are excluded with a counted skip reason, under
+the same accounting discipline described below.
+
+Codex subagents are sibling rollout files rather than nested ones, and
+their filenames carry each thread's own id while the in-band
+`session_id` records the root thread's. Consequences for discovery: a
+scan groups a task by `session_id` (the filter also matches a
+subagent's own thread id), while `Locate` resolves exactly one thread's
+file, so `--harness codex --session-id <parent>` returns the parent
+alone and a scan is what gathers the whole task. Antigravity subagent
+conversations are structurally ordinary sessions; nothing in the
+layout or transcript marks them, so discovery cannot group them
+(the linkage is embedded in step content). For how the files tie back
+to the parent on each harness and how to analyze a whole task, see
+[Subagents](/docs/subagents/).
+
 ## Refs survive resumed turns
 
 A located ref stays valid across resumed turns: every supported harness
@@ -95,8 +133,9 @@ $ agentminutes stats ~/.claude/projects/-tmp-demo/84cffcb8-*.jsonl | jq '{user_m
 
 The archiving consequence: a runner that grabs the ref after turn 1 can
 keep re-reading the same path after every later turn, and an archive
-taken after the final turn contains the whole conversation. There is no
-second file to forget.
+taken after the final turn contains the whole conversation. Resuming
+never creates a second file to forget; delegation does, and the same
+ref lists those subagent files too (see above).
 
 ## The accounting discipline
 
