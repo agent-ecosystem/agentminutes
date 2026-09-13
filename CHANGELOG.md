@@ -6,6 +6,25 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Changed
+
+- Harness drift reconciled from a fresh probe run; `harness.LastValidated`
+  moved to antigravity 1.2.2, claude-code 2.1.236, and codex 0.154.0, with
+  baselines regenerated (antigravity's vocabulary was unchanged) and the
+  format inventories updated:
+  - Codex 0.154.0 adds a `token_usage_record` top-level record
+    (per-response usage telemetry). It parses to a `system` event; its
+    numbers duplicate the `token_count` stream, which remains the usage
+    accounting source. `turn_context` gained an additive `root_turn_id`
+    key. The fixture `harness/codex/testdata/usage_record.jsonl` pins the
+    0.154.0 shape.
+  - Claude Code adds three sidecar record types, all skip-listed:
+    `atis-latch` (2.1.236), `bridge-session` (2.1.236: cloud-bridge
+    session linkage), and `frame-link` (2.1.231: local-file-to-artifact
+    linkage).
+- Bumped the agentsummons dependency to v0.3.3 (validated harness-version
+  refresh; no API changes).
+
 ## [0.4.0] - 2026-08-24
 
 ### Added

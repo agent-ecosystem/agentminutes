@@ -87,7 +87,10 @@ func TestFixtureMetaTotalsReport(t *testing.T) {
 		t.Errorf("TotalPromptTokens = %d, want 660", s.Totals.TotalPromptTokens)
 	}
 
-	wantSkips := map[string]int{"mode": 1, "file-history-snapshot": 1, "file-history-delta": 1, "ai-title": 1, "pr-link": 1}
+	wantSkips := map[string]int{
+		"mode": 1, "file-history-snapshot": 1, "file-history-delta": 1,
+		"ai-title": 1, "atis-latch": 1, "bridge-session": 1, "frame-link": 1, "pr-link": 1,
+	}
 	for k, n := range wantSkips {
 		if s.Report.SkippedRecords[k] != n {
 			t.Errorf("SkippedRecords[%s] = %d, want %d", k, s.Report.SkippedRecords[k], n)

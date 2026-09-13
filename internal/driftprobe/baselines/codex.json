@@ -1,6 +1,6 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.149.1",
+  "generated_from_version": "0.154.0",
   "record_types": {
     "event_msg": {
       "keys": [
@@ -122,6 +122,22 @@
         "type"
       ]
     },
+    "token_usage_record": {
+      "keys": [
+        "ordinal",
+        "payload",
+        "payload.response_id",
+        "payload.root_turn_id",
+        "payload.session_id",
+        "payload.thread_id",
+        "payload.thread_token_usage",
+        "payload.turn_id",
+        "payload.turn_token_usage",
+        "payload.usage",
+        "timestamp",
+        "type"
+      ]
+    },
     "turn_context": {
       "keys": [
         "ordinal",
@@ -141,6 +157,7 @@
         "payload.permission_profile",
         "payload.personality",
         "payload.realtime_active",
+        "payload.root_turn_id",
         "payload.sandbox_policy",
         "payload.summary",
         "payload.timezone",

@@ -146,6 +146,11 @@ func (p *parser) record(data []byte) bool {
 	switch rec.Type {
 	case "world_state", "compacted":
 		return p.system(&rec, data, rec.Type, "", "")
+	case "token_usage_record":
+		// Per-response usage telemetry (0.154.0+). Its usage duplicates
+		// the event_msg token_count stream, which stays the accounting
+		// source; the record is preserved as telemetry only.
+		return p.system(&rec, data, "token_usage_record", "", "")
 	case "turn_context":
 		var tc struct {
 			Model string `json:"model"`
