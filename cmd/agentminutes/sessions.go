@@ -78,7 +78,8 @@ failure.`,
 					filtered++ // Locate bypasses ScanOptions; re-check
 					continue
 				}
-				if sessionID != "" && ref.Meta.SessionID != sessionID {
+				if sessionID != "" && ref.Meta.SessionID != sessionID &&
+					ref.Meta.SubagentID != sessionID {
 					filtered++
 					continue
 				}

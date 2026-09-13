@@ -31,6 +31,11 @@ type sessionMeta struct {
 	Git        struct {
 		Branch string `json:"branch"`
 	} `json:"git"`
+	// ThreadSource distinguishes subagent threads ("subagent", 0.154.0
+	// multi-agent sessions) from user threads ("user"). Subagent rollouts
+	// record the parent thread's id as session_id and their own id as id,
+	// so SessionID already groups a task's files without adapter help.
+	ThreadSource string `json:"thread_source"`
 }
 
 // responseItem covers all response_item payload variants; unused fields
@@ -151,6 +156,10 @@ func (p *parser) record(data []byte) bool {
 		// the event_msg token_count stream, which stays the accounting
 		// source; the record is preserved as telemetry only.
 		return p.system(&rec, data, "token_usage_record", "", "")
+	case "inter_agent_communication_metadata":
+		// Multi-agent bookkeeping (0.154.0 subagent sessions; observed
+		// payload is a lone trigger_turn bool). Telemetry, preserved.
+		return p.system(&rec, data, "inter_agent_communication_metadata", "", "")
 	case "turn_context":
 		var tc struct {
 			Model string `json:"model"`
@@ -197,6 +206,10 @@ func (p *parser) emitMeta(rec *rolloutLine, data []byte) bool {
 		m.SessionID = sm.SessionID
 		if m.SessionID == "" {
 			m.SessionID = sm.ID
+		}
+		if sm.ThreadSource == "subagent" {
+			m.IsSubagent = true
+			m.SubagentID = sm.ID
 		}
 		m.CWD = sm.CWD
 		m.GitBranch = sm.Git.Branch
@@ -271,6 +284,16 @@ func (p *parser) responseItem(rec *rolloutLine, data []byte) bool {
 	switch item.Type {
 	case "message":
 		return p.message(rec, &item, data)
+	case "agent_message":
+		// Inter-agent message (0.154.0 subagent sessions): a message
+		// between agents in the same task, carrying author/recipient
+		// agent paths. Preserved as telemetry with the payload in full;
+		// the parent's own conversation stays the message/… stream.
+		blocks, err := parseBlocks(item.Content)
+		if err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed agent_message content: %v", err))
+		}
+		return p.system(rec, data, "agent_message", "", blocksPlainText(blocks))
 	case "reasoning":
 		return p.reasoning(rec, &item, data)
 	case "function_call":

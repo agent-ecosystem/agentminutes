@@ -47,6 +47,10 @@ func TestFixtureEventSequence(t *testing.T) {
 		session.KindToolResult,       // step 8: READ_URL_CONTENT
 		session.KindAssistantMessage, // step 9: final answer
 		session.KindSystem,           // step 10: system_message (server notice)
+		session.KindThinking,         // step 11
+		session.KindAssistantMessage, // step 11 anchor (no text)
+		session.KindToolCall,         // step 11: invoke_subagent
+		session.KindToolResult,       // step 12: GENERIC subagent-creation record
 	}
 	got := make([]session.EventKind, len(s.Events))
 	for i, ev := range s.Events {
@@ -104,8 +108,8 @@ func TestFixtureModelAndAnchors(t *testing.T) {
 			anchors = append(anchors, ev.AssistantMessage)
 		}
 	}
-	if len(anchors) != 4 {
-		t.Fatalf("got %d anchors, want 4", len(anchors))
+	if len(anchors) != 5 {
+		t.Fatalf("got %d anchors, want 5", len(anchors))
 	}
 	for i, am := range anchors {
 		if am.Model != "Gemini 3.5 Flash (Medium)" {
@@ -131,8 +135,8 @@ func TestFixtureToolPairing(t *testing.T) {
 	s := parseFixture(t, harness.Options{})
 
 	ti := s.ToolInteractions()
-	if len(ti) != 3 {
-		t.Fatalf("got %d interactions, want 3", len(ti))
+	if len(ti) != 4 {
+		t.Fatalf("got %d interactions, want 4", len(ti))
 	}
 	wantCalls := []struct {
 		name string
@@ -142,6 +146,7 @@ func TestFixtureToolPairing(t *testing.T) {
 		{"run_command", session.ToolKindExecute, "step-2:call-0"},
 		{"write_to_file", session.ToolKindEdit, "step-5:call-0"},
 		{"read_url_content", session.ToolKindFetch, "step-7:call-0"},
+		{"invoke_subagent", session.ToolKindOther, "step-11:call-0"},
 	}
 	for i, w := range wantCalls {
 		call := ti[i].Call.ToolCall

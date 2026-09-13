@@ -111,6 +111,13 @@ func (a Adapter) Locate(root, sessionID string) (harness.SessionRef, error) {
 	if err != nil {
 		return harness.SessionRef{}, err
 	}
+	// A subagent rollout's filename carries its own thread id while its
+	// in-band session_id is the parent thread's (0.154.0 multi-agent
+	// sessions), so a lookup by the subagent's id confirms against
+	// SubagentID instead.
+	if ref.Meta.IsSubagent && ref.Meta.SubagentID == sessionID {
+		return ref, nil
+	}
 	if err := harness.ConfirmSessionID(harness.Codex, path, ref.Meta.SessionID, sessionID); err != nil {
 		return harness.SessionRef{}, err
 	}

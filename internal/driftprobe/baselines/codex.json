@@ -43,14 +43,18 @@
       ],
       "discriminators": {
         "payload.item.kind": [
+          "completed",
+          "started",
           "web.search"
         ],
         "payload.item.type": [
           "AgentMessage",
+          "CollabAgentToolCall",
           "CommandExecution",
           "Extension",
           "FileChange",
           "Reasoning",
+          "SubAgentActivity",
           "UserMessage"
         ],
         "payload.type": [
@@ -66,11 +70,22 @@
         ]
       }
     },
+    "inter_agent_communication_metadata": {
+      "keys": [
+        "ordinal",
+        "payload",
+        "payload.trigger_turn",
+        "timestamp",
+        "type"
+      ]
+    },
     "response_item": {
       "keys": [
         "ordinal",
         "payload",
         "payload.action",
+        "payload.arguments",
+        "payload.author",
         "payload.call_id",
         "payload.content",
         "payload.encrypted_content",
@@ -78,8 +93,10 @@
         "payload.input",
         "payload.internal_chat_message_metadata_passthrough",
         "payload.name",
+        "payload.namespace",
         "payload.output",
         "payload.phase",
+        "payload.recipient",
         "payload.role",
         "payload.status",
         "payload.summary",
@@ -89,11 +106,16 @@
       ],
       "discriminators": {
         "payload.name": [
-          "exec"
+          "exec",
+          "spawn_agent",
+          "wait_agent"
         ],
         "payload.type": [
+          "agent_message",
           "custom_tool_call",
           "custom_tool_call_output",
+          "function_call",
+          "function_call_output",
           "message",
           "reasoning",
           "web_search_call"
@@ -104,18 +126,24 @@
       "keys": [
         "ordinal",
         "payload",
+        "payload.agent_nickname",
+        "payload.agent_path",
         "payload.base_instructions",
         "payload.cli_version",
         "payload.context_window",
         "payload.cwd",
         "payload.dynamic_tools",
+        "payload.forked_from_id",
         "payload.git",
         "payload.history_mode",
         "payload.id",
         "payload.model_provider",
+        "payload.multi_agent_version",
         "payload.originator",
+        "payload.parent_thread_id",
         "payload.session_id",
         "payload.source",
+        "payload.subagent_history_start_ordinal",
         "payload.thread_source",
         "payload.timestamp",
         "timestamp",
@@ -142,6 +170,7 @@
       "keys": [
         "ordinal",
         "payload",
+        "payload.active_permission_profile",
         "payload.approval_policy",
         "payload.approvals_reviewer",
         "payload.collaboration_mode",

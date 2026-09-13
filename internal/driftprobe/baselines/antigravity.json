@@ -142,6 +142,7 @@
           "ask_question",
           "command_status",
           "grep_search",
+          "invoke_subagent",
           "list_dir",
           "list_permissions",
           "manage_subagents",
@@ -149,6 +150,7 @@
           "read_url_content",
           "run_command",
           "search_web",
+          "send_message",
           "view_file",
           "write_to_file"
         ]

@@ -6,6 +6,32 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Added
+
+- Subagent sessions are now first-class for all three harnesses,
+  validated by live spawn probes (codex 0.154.0, antigravity 1.2.2):
+  - Codex multi-agent rollouts parse fully: the new
+    `inter_agent_communication_metadata` record and `agent_message`
+    response items (inter-agent messages with author/recipient agent
+    paths) become `system` events, and the collaboration
+    `function_call`s (`spawn_agent`, `wait_agent`) are the first
+    observed `function_call` records. A subagent rollout's meta now
+    carries `is_subagent` and `subagent_id` (from `thread_source` and
+    the thread's own id); `session_id` records the root thread at every
+    spawn depth, so grouping a task's files is a `session_id` match,
+    and `Locate` accepts a subagent's own thread id. Fixtures
+    `subagent_parent.jsonl`/`subagent_child.jsonl` pin the shapes.
+  - Antigravity subagents (parent `invoke_subagent` tool call answered
+    by a `GENERIC` step embedding the child conversation id; the child
+    reports back via `send_message` with the parent id as recipient)
+    already parsed; the baseline and fixture now pin the vocabulary.
+    The transcript records no structural subagent marker, so
+    `is_subagent` stays unset for antigravity; correlation is a
+    content join, documented in the format inventory.
+  - The `sessions` `--session-id` scan filter also matches
+    `subagent_id`, so a codex subagent file is findable by its own
+    thread id.
+
 ## [0.4.1] - 2026-09-13
 
 ### Changed

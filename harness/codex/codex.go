@@ -30,13 +30,14 @@ func (Adapter) ID() harness.ID { return harness.Codex }
 
 // recordTypes are the known top-level rollout record types.
 var recordTypes = map[string]bool{
-	"session_meta":       true,
-	"response_item":      true,
-	"event_msg":          true,
-	"turn_context":       true,
-	"world_state":        true,
-	"compacted":          true,
-	"token_usage_record": true,
+	"session_meta":                       true,
+	"response_item":                      true,
+	"event_msg":                          true,
+	"turn_context":                       true,
+	"world_state":                        true,
+	"compacted":                          true,
+	"token_usage_record":                 true,
+	"inter_agent_communication_metadata": true,
 }
 
 // skipEventMsgTypes are event_msg payloads that byte-duplicate adjacent
