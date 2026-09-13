@@ -47,6 +47,14 @@ Apache site). The repo pre-commit hook runs `site/check_prose_style`
 README.md is outside the hook's scope; lint it with
 `vale --config site/.vale.ini README.md`.
 
+New documentation pages (any new file under `site/content/`) need the
+maintainer's review before they ship: write the page, lint and
+build-check it, then stop and ask for a read. Do not commit or deploy
+it until the maintainer has read the draft and said to proceed. This is
+about new prose, whose framing the maintainer wants to see first;
+mechanical refreshes of existing pages (re-captured command output,
+version bumps, cross-link fixes) follow the normal commit flow.
+
 Docs that move with the code:
 
 - `content/docs/cli.md`: every example is captured real output. The
