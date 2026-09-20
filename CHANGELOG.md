@@ -10,13 +10,15 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 - Claude Code `cost-state` records parse as `system` events (subtype
   `cost-state`, record verbatim in `details`). Interactive sessions on
-  2.1.267 persist the session cost tracker as their final record at
-  exit: total cost, API/tool/wall durations, lines changed, and
-  per-model token usage including thinking tokens and helper-model
-  calls that never appear as assistant records. Because that usage is a
-  superset of the transcript, it is preserved as telemetry and never
-  folded into `totals`. Before this, such transcripts failed the strict
-  parse with `unrecognized record type "cost-state"`.
+  2.1.267 persist the session cost tracker at orderly exit, once per
+  process: total cost, API/tool/wall durations, lines changed, and
+  per-model token usage including thinking tokens, subagent calls, and
+  helper-model calls that never appear as assistant records. A resumed
+  session writes another, cumulative record at its own exit, so the
+  session total is the last one. Because that usage is a superset of
+  the transcript, it is preserved as telemetry and never folded into
+  `totals`. Before this, such transcripts failed the strict parse with
+  `unrecognized record type "cost-state"`.
 
 ### Changed
 

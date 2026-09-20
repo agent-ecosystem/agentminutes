@@ -429,14 +429,18 @@ func (p *parser) system(rec *record, data []byte) bool {
 }
 
 // costState preserves the session's cost tracker, which interactive
-// sessions persist as the final record at exit (2.1.267+): totalCostUSD,
-// API/tool/wall durations, lines added/removed, and per-model token usage
-// (with thinkingTokens and webSearchRequests) for every API request the
-// process made. That is a superset of what the transcript records (helper
-// calls such as title generation never appear as assistant records), so
-// it is telemetry, never accounting: Totals stay derived from message
-// usage, and the record rides along verbatim as a system event. It has no
-// uuid or timestamp of its own.
+// sessions persist at orderly shutdown (2.1.267+; a hard kill writes
+// nothing): totalCostUSD, API/tool/wall durations, lines added/removed,
+// and per-model token usage (with thinkingTokens and webSearchRequests)
+// for every API request the session made, subagents included. That is a
+// superset of what the transcript records (helper calls such as title
+// generation never appear as assistant records), so it is telemetry,
+// never accounting: Totals stay derived from message usage, and the record
+// rides along verbatim as a system event. One record per process exit: a
+// resumed session appends after it and writes another, cumulative, at its
+// own exit, so the session total is the last one. It is usually but not
+// always the final record (the /exit command's echo can follow it), and it
+// has no uuid or timestamp of its own.
 func (p *parser) costState(_ *record, data []byte) bool {
 	return p.Emit(session.Event{
 		Kind:       session.KindSystem,

@@ -144,6 +144,50 @@ func TestCostStateFixture(t *testing.T) {
 	}
 }
 
+// TestCostStateResume pins the resumed-session shape observed on 2.1.267:
+// one cost-state per process exit, the /exit command's echo records
+// after it, and the next process appending after that. Every record
+// becomes an event (the fold stays open across cost-state like any other
+// non-assistant record), and totals still come from message usage only.
+func TestCostStateResume(t *testing.T) {
+	const transcript = `{"type":"user","uuid":"u-1","parentUuid":null,"timestamp":"2026-09-20T17:02:43.000Z","sessionId":"s-resume","version":"2.1.267","cwd":"/tmp/p","message":{"role":"user","content":"one"}}
+{"type":"assistant","uuid":"a-1","parentUuid":"u-1","timestamp":"2026-09-20T17:02:45.000Z","sessionId":"s-resume","version":"2.1.267","message":{"id":"m-1","role":"assistant","model":"claude-fable-5-1","content":[{"type":"text","text":"one"}],"usage":{"input_tokens":2,"output_tokens":3,"cache_read_input_tokens":100,"cache_creation_input_tokens":10}}}
+{"type":"cost-state","sessionId":"s-resume","totalCostUSD":0.2,"totalDuration":14424,"startTime":1789923752584,"modelUsage":{"claude-fable-5-1":{"inputTokens":2,"outputTokens":3}}}
+{"type":"user","uuid":"u-2","parentUuid":"a-1","timestamp":"2026-09-20T17:03:06.000Z","sessionId":"s-resume","version":"2.1.267","cwd":"/tmp/p","message":{"role":"user","content":"two"}}
+{"type":"assistant","uuid":"a-2","parentUuid":"u-2","timestamp":"2026-09-20T17:03:10.000Z","sessionId":"s-resume","version":"2.1.267","message":{"id":"m-2","role":"assistant","model":"claude-fable-5-1","content":[{"type":"text","text":"two"}],"usage":{"input_tokens":2,"output_tokens":3,"cache_read_input_tokens":200,"cache_creation_input_tokens":20}}}
+{"type":"cost-state","sessionId":"s-resume","totalCostUSD":0.4,"totalDuration":63867,"startTime":1789923752584,"modelUsage":{"claude-fable-5-1":{"inputTokens":510,"outputTokens":17}}}
+{"type":"user","uuid":"u-3","parentUuid":"a-2","timestamp":"2026-09-20T17:03:43.000Z","sessionId":"s-resume","version":"2.1.267","cwd":"/tmp/p","message":{"role":"user","content":"<command-name>/exit</command-name>"}}
+`
+	var skips []int
+	s, err := harness.Parse(Adapter{}, strings.NewReader(transcript), harness.Options{
+		OnSkip: func(line int, _ string) { skips = append(skips, line) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var costs []float64
+	for _, ev := range s.Events {
+		if ev.Kind == session.KindSystem && ev.System.Subtype == "cost-state" {
+			var d struct {
+				TotalCostUSD float64 `json:"totalCostUSD"`
+			}
+			if err := json.Unmarshal(ev.System.Details, &d); err != nil {
+				t.Fatal(err)
+			}
+			costs = append(costs, d.TotalCostUSD)
+		}
+	}
+	if len(costs) != 2 || costs[1] != 0.4 {
+		t.Errorf("cost-state totals = %v, want one per process exit, the last cumulative", costs)
+	}
+	if s.Totals == nil || s.Totals.InputTokens != 4 || s.Totals.OutputTokens != 6 || s.Totals.CacheReadInputTokens != 300 {
+		t.Errorf("Totals = %+v, want message usage only (4/6/300)", s.Totals)
+	}
+	if un := parseutil.UncoveredLines([]byte(transcript), s.Events, skips); len(un) > 0 {
+		t.Errorf("lines not covered: %v", un)
+	}
+}
+
 // TestSearchFallbackFixture covers the vocabulary the first consumer's
 // smoke tests surfaced (recorded in the inventory): the Glob and Grep
 // search tools with their toolUseResult envelopes, and the refusal → model
