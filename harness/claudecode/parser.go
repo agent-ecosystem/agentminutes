@@ -437,10 +437,12 @@ func (p *parser) system(rec *record, data []byte) bool {
 // generation never appear as assistant records), so it is telemetry,
 // never accounting: Totals stay derived from message usage, and the record
 // rides along verbatim as a system event. One record per process exit: a
-// resumed session appends after it and writes another, cumulative, at its
-// own exit, so the session total is the last one. It is usually but not
-// always the final record (the /exit command's echo can follow it), and it
-// has no uuid or timestamp of its own.
+// resumed session restores the tracker from the last record in the
+// transcript, appends after it, and writes another, cumulative, at its own
+// exit, so the session total is the last one (minus any process that died
+// without writing, which nothing restores). It is usually but not always
+// the final record (the /exit command's echo can follow it), and it has no
+// uuid or timestamp of its own.
 func (p *parser) costState(_ *record, data []byte) bool {
 	return p.Emit(session.Event{
 		Kind:       session.KindSystem,
