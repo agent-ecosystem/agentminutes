@@ -50,6 +50,11 @@ type vocabConfig struct {
 	// normalize collapses unbounded user-specific values (e.g. MCP tool
 	// names) so they never read as drift. Nil means identity.
 	normalize func(path, value string) string
+
+	// normalizeKey collapses key paths whose segments are per-record
+	// identifiers (e.g. maps keyed by tool-use id) so every session does
+	// not mint new vocabulary. Nil means identity.
+	normalizeKey func(key string) string
 }
 
 // vocabConfigs, alphabetical like all harness lists. Tool-name paths are
@@ -72,6 +77,17 @@ var vocabConfigs = map[harness.ID]vocabConfig{
 				return "mcp__*"
 			}
 			return value
+		},
+		// 2.1.267 assistant records carry wireToolInputs and
+		// wireIngestContext maps keyed by tool_use id, and cost-state
+		// records a modelUsage map keyed by model name; the ids and model
+		// names are the churn, the map names are the vocabulary.
+		normalizeKey: func(key string) string {
+			parent, child, ok := strings.Cut(key, ".")
+			if ok && (strings.HasPrefix(child, "toolu_") || parent == "modelUsage") {
+				return parent + ".*"
+			}
+			return key
 		},
 	},
 	harness.Codex: {
@@ -133,11 +149,11 @@ func (b *vocabBuilder) addRecord(raw []byte) error {
 		b.types[rtype] = rv
 	}
 	for k, v := range obj {
-		rv.keys[k] = true
+		rv.keys[b.key(k)] = true
 		var sub map[string]json.RawMessage
 		if json.Unmarshal(v, &sub) == nil {
 			for sk := range sub {
-				rv.keys[k+"."+sk] = true
+				rv.keys[b.key(k+"."+sk)] = true
 			}
 		}
 	}
@@ -155,6 +171,14 @@ func (b *vocabBuilder) addRecord(raw []byte) error {
 		}
 	}
 	return nil
+}
+
+// key applies the harness's key normalization, if any.
+func (b *vocabBuilder) key(k string) string {
+	if b.cfg.normalizeKey != nil {
+		return b.cfg.normalizeKey(k)
+	}
+	return k
 }
 
 func (b *vocabBuilder) finalize(version string) *Baseline {

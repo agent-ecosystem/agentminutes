@@ -40,6 +40,42 @@ func TestBuildBaselineVocabulary(t *testing.T) {
 	}
 }
 
+// TestBuildBaselineCollapsesToolUseIDKeys pins the key normalization for
+// the 2.1.267 assistant maps keyed by tool_use id: the map names are
+// vocabulary, the ids are not, so a fresh session must not read as drift.
+func TestBuildBaselineCollapsesToolUseIDKeys(t *testing.T) {
+	wired := `{"type":"assistant","uuid":"a-2","sessionId":"s-1","version":"2.1.267","message":{"role":"assistant","content":[]},"wireToolInputs":{"toolu_01AAA":{"x":1},"toolu_01BBB":{"x":2}},"wireIngestContext":{"toolu_01AAA":{}}}` + "\n" +
+		`{"type":"cost-state","sessionId":"s-1","totalCostUSD":1,"modelUsage":{"claude-fable-5-1":{"inputTokens":1}}}`
+	b, err := BuildBaseline(harness.ClaudeCode, "2.1.267", [][]byte{[]byte(wired + "\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := b.RecordTypes["assistant"].Keys
+	for _, want := range []string{"wireToolInputs", "wireToolInputs.*", "wireIngestContext.*"} {
+		if !slices.Contains(keys, want) {
+			t.Errorf("assistant keys = %v, want %q", keys, want)
+		}
+	}
+	for _, k := range keys {
+		if strings.Contains(k, "toolu_") {
+			t.Errorf("assistant keys = %v: tool_use ids must be collapsed", keys)
+			break
+		}
+	}
+	cost := b.RecordTypes["cost-state"].Keys
+	if !slices.Contains(cost, "modelUsage.*") || slices.Contains(cost, "modelUsage.claude-fable-5-1") {
+		t.Errorf("cost-state keys = %v: model names must be collapsed to modelUsage.*", cost)
+	}
+	fresh := strings.NewReplacer("toolu_01AAA", "toolu_01CCC", "toolu_01BBB", "toolu_01DDD", "claude-fable-5-1", "claude-opus-5").Replace(wired)
+	observed, err := BuildBaseline(harness.ClaudeCode, "2.1.267", [][]byte{[]byte(fresh + "\n")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := DiffBaseline(b, observed); d.HasDrift() {
+		t.Errorf("fresh ids drifted: %+v", d)
+	}
+}
+
 func TestDiffBaseline(t *testing.T) {
 	base, err := BuildBaseline(harness.ClaudeCode, "", [][]byte{[]byte(ccUser + "\n" + ccTools + "\n")})
 	if err != nil {

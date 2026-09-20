@@ -35,7 +35,9 @@ var conversationTypes = map[string]bool{
 
 // skipTypes are harness/UI bookkeeping records with no model-visible
 // content. They are excluded from the event stream and reported via
-// Options.OnSkip, never silently dropped.
+// Options.OnSkip, never silently dropped. Not listed: "cost-state", the
+// session cost tracker persisted at exit (2.1.267+), which carries usage
+// telemetry and becomes a system event instead (see parser.costState).
 var skipTypes = map[string]bool{
 	"mode":                  true,
 	"permission-mode":       true,
@@ -56,6 +58,7 @@ var toolKinds = map[string]session.ToolKind{
 	"Read":         session.ToolKindRead,
 	"Glob":         session.ToolKindSearch,
 	"Grep":         session.ToolKindSearch,
+	"TaskOutput":   session.ToolKindRead,
 	"ToolSearch":   session.ToolKindSearch,
 	"Bash":         session.ToolKindExecute,
 	"Edit":         session.ToolKindEdit,

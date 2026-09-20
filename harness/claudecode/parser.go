@@ -138,6 +138,8 @@ func (p *parser) record(data []byte) bool {
 		return p.conversation(&rec, data, p.system)
 	case rec.Type == "attachment":
 		return p.conversation(&rec, data, p.attachment)
+	case rec.Type == "cost-state":
+		return p.conversation(&rec, data, p.costState)
 	default:
 		return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("unrecognized record type %q", rec.Type))
 	}
@@ -421,6 +423,26 @@ func (p *parser) system(rec *record, data []byte) bool {
 			Subtype: rec.Subtype,
 			Level:   rec.Level,
 			Text:    text,
+			Details: parseutil.CloneRaw(data),
+		},
+	})
+}
+
+// costState preserves the session's cost tracker, which interactive
+// sessions persist as the final record at exit (2.1.267+): totalCostUSD,
+// API/tool/wall durations, lines added/removed, and per-model token usage
+// (with thinkingTokens and webSearchRequests) for every API request the
+// process made. That is a superset of what the transcript records (helper
+// calls such as title generation never appear as assistant records), so
+// it is telemetry, never accounting: Totals stay derived from message
+// usage, and the record rides along verbatim as a system event. It has no
+// uuid or timestamp of its own.
+func (p *parser) costState(_ *record, data []byte) bool {
+	return p.Emit(session.Event{
+		Kind:       session.KindSystem,
+		Provenance: p.Prov(data),
+		System: &session.SystemEvent{
+			Subtype: "cost-state",
 			Details: parseutil.CloneRaw(data),
 		},
 	})

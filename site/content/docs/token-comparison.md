@@ -43,6 +43,14 @@ Exactly one `assistant_message` event exists per API message, so
 per-message usage is always recoverable from the event stream when you
 need finer grain than the session totals.
 
+Interactive Claude Code sessions on 2.1.267 and later also end with a
+`cost-state` record, which agentminutes preserves as a `system` event
+with subtype `cost-state`. It carries the harness's own per-model usage
+and cost (including thinking tokens and helper-model calls that never
+appear as assistant records), so it is a superset of the transcript.
+The adapter leaves it out of `totals` for that reason: compare the two
+to size the hidden overhead, never add them together.
+
 ## The input-token trap
 
 The providers define `input_tokens` differently, and the difference is

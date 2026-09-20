@@ -37,7 +37,7 @@ func TestConvertJSON(t *testing.T) {
 	if s.SchemaVersion != session.SchemaVersion {
 		t.Errorf("schema version = %q, want %q", s.SchemaVersion, session.SchemaVersion)
 	}
-	if len(s.Events) != 13 || s.Meta.SessionID != "s-fixture" {
+	if len(s.Events) != 14 || s.Meta.SessionID != "s-fixture" {
 		t.Errorf("got %d events, meta %+v", len(s.Events), s.Meta)
 	}
 	if s.Report.SkippedRecords["mode"] != 1 {
@@ -51,8 +51,8 @@ func TestConvertJSONL(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
-	if len(lines) != 13 {
-		t.Fatalf("got %d jsonl lines, want 13", len(lines))
+	if len(lines) != 14 {
+		t.Fatalf("got %d jsonl lines, want 14", len(lines))
 	}
 	for i, ln := range lines {
 		var ev session.Event
@@ -65,7 +65,7 @@ func TestConvertJSONL(t *testing.T) {
 	}
 	// The stderr summary must carry the same per-type breakdown as the json
 	// report's skipped_records, so jsonl consumers can audit what dropped.
-	if !strings.Contains(stderr, "13 events, 8 skipped records (ai-title 1, atis-latch 1, bridge-session 1, file-history-delta 1, file-history-snapshot 1, frame-link 1, mode 1, pr-link 1)") {
+	if !strings.Contains(stderr, "14 events, 8 skipped records (ai-title 1, atis-latch 1, bridge-session 1, file-history-delta 1, file-history-snapshot 1, frame-link 1, mode 1, pr-link 1)") {
 		t.Errorf("stderr = %q, want per-type skip summary", stderr)
 	}
 }

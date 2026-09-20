@@ -1,6 +1,6 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.154.0",
+  "generated_from_version": "0.155.1",
   "record_types": {
     "event_msg": {
       "keys": [
@@ -81,6 +81,9 @@
     },
     "response_item": {
       "keys": [
+        "metadata",
+        "metadata.client_authored",
+        "metadata.fallback_token_limit_override",
         "ordinal",
         "payload",
         "payload.action",
@@ -141,6 +144,7 @@
         "payload.multi_agent_version",
         "payload.originator",
         "payload.parent_thread_id",
+        "payload.runtime_workspace_roots",
         "payload.session_id",
         "payload.source",
         "payload.subagent_history_start_ordinal",
@@ -178,6 +182,7 @@
         "payload.current_date",
         "payload.cwd",
         "payload.developer_instructions",
+        "payload.disabled_plugin_ids",
         "payload.effort",
         "payload.file_system_sandbox_policy",
         "payload.model",

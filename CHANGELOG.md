@@ -6,6 +6,36 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Added
+
+- Claude Code `cost-state` records parse as `system` events (subtype
+  `cost-state`, record verbatim in `details`). Interactive sessions on
+  2.1.267 persist the session cost tracker as their final record at
+  exit: total cost, API/tool/wall durations, lines changed, and
+  per-model token usage including thinking tokens and helper-model
+  calls that never appear as assistant records. Because that usage is a
+  superset of the transcript, it is preserved as telemetry and never
+  folded into `totals`. Before this, such transcripts failed the strict
+  parse with `unrecognized record type "cost-state"`.
+
+### Changed
+
+- Revalidated against antigravity 1.2.7, claude-code 2.1.267, and codex
+  0.155.1 (`LastValidated`); baselines regenerated over fixtures plus
+  the local corpus. Antigravity was unchanged. Claude Code added
+  assistant keys (`perTurnEffort`, `apiBlockIndex`, `wireToolInputs`,
+  `wireIngestContext`), a batch of `attachment` subkeys, and sidecar
+  hints; the `TaskOutput` tool now maps to kind `read`. Codex added
+  `response_item.metadata`, `session_meta.payload.runtime_workspace_roots`,
+  and `turn_context.payload.disabled_plugin_ids`, all left unread; its
+  file and fetch probes stay inconclusive by construction and both
+  opt-in promotions still recover the edit and fetch.
+- Baseline vocabulary collapses key paths that are per-record
+  identifiers (`wireToolInputs.*`, `wireIngestContext.*`,
+  `modelUsage.*`), so a fresh session or a new model name no longer
+  reads as drift.
+- agentsummons dependency bumped to v0.3.4.
+
 ## [0.5.0] - 2026-09-13
 
 ### Added

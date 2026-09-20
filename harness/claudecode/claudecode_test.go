@@ -51,6 +51,7 @@ func TestFixtureEventSequence(t *testing.T) {
 		session.KindSystem,           // attachment/task_reminder, line 12
 		session.KindUserMessage,      // harness-injected reminder, line 13
 		session.KindToolResult,       // orphan, line 14
+		session.KindSystem,           // cost-state, line 21 (the fold stays open across it)
 		session.KindAssistantMessage, // msg_02 anchor, closed at EOF
 	}
 	got := kinds(s.Events)
@@ -101,6 +102,45 @@ func TestFixtureMetaTotalsReport(t *testing.T) {
 	}
 	if s.Report.UnknownEvents != 0 {
 		t.Errorf("UnknownEvents = %d, want 0", s.Report.UnknownEvents)
+	}
+}
+
+// TestCostStateFixture pins the cost-state record (2.1.267+, the session
+// cost tracker persisted at exit): a system event carrying the record
+// verbatim, and no effect on Totals, which stay derived from message usage
+// (the record's modelUsage is a superset of the transcript, so folding it
+// in would double count; TestFixtureMetaTotalsReport pins the totals).
+func TestCostStateFixture(t *testing.T) {
+	s := parseFixture(t, harness.Options{})
+	var cost *session.Event
+	for i := range s.Events {
+		if ev := &s.Events[i]; ev.Kind == session.KindSystem && ev.System.Subtype == "cost-state" {
+			cost = ev
+		}
+	}
+	if cost == nil {
+		t.Fatal("no cost-state system event")
+	}
+	type modelUsage struct {
+		ThinkingTokens int `json:"thinkingTokens"`
+	}
+	var details struct {
+		SessionID    string                `json:"sessionId"`
+		TotalCostUSD float64               `json:"totalCostUSD"`
+		ModelUsage   map[string]modelUsage `json:"modelUsage"`
+	}
+	if err := json.Unmarshal(cost.System.Details, &details); err != nil {
+		t.Fatal(err)
+	}
+	if details.SessionID != "s-fixture" || details.TotalCostUSD != 0.0421 || len(details.ModelUsage) != 2 ||
+		details.ModelUsage["claude-fable-5"].ThinkingTokens != 20 {
+		t.Errorf("details = %+v, want the record verbatim", details)
+	}
+	if cost.Provenance == nil || cost.Provenance.Line != 21 {
+		t.Errorf("provenance = %+v, want line 21", cost.Provenance)
+	}
+	if s.Report.SkippedRecords["cost-state"] != 0 {
+		t.Error("cost-state must not be skip-listed: it carries usage telemetry")
 	}
 }
 
