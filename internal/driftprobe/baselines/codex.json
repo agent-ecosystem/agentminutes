@@ -1,6 +1,6 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.155.1",
+  "generated_from_version": "0.157.0",
   "record_types": {
     "event_msg": {
       "keys": [
@@ -26,6 +26,7 @@
         "payload.phase",
         "payload.query",
         "payload.rate_limits",
+        "payload.root_turn_id",
         "payload.started_at",
         "payload.started_at_ms",
         "payload.status",
@@ -84,6 +85,8 @@
         "metadata",
         "metadata.client_authored",
         "metadata.fallback_token_limit_override",
+        "metadata.mcp_attribution",
+        "metadata.user_input_order",
         "ordinal",
         "payload",
         "payload.action",

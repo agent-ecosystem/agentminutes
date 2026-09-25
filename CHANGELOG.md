@@ -6,6 +6,23 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Changed
+
+- Revalidated against antigravity 1.2.11, claude-code 2.1.274, and codex
+  0.157.0 (`LastValidated`); baselines regenerated over fixtures plus
+  the local corpus. No adapter changes were needed. Antigravity was
+  unchanged. Claude Code surfaced the Stop-hook records (`system`
+  subtype `stop_hook_summary` and `attachment` type `hook_success`,
+  both already parsed) and added `attachment.clearAt`,
+  `managedCommit`/`managedPr` on `remote_session_change`, the
+  `SendFeedback` tool (kind `other`), classifier-context keys, and the
+  Bash sidecar `toolUseResult.bashEditDiff`, all additive. Codex added
+  `event_msg.payload.root_turn_id` and
+  `response_item.metadata.mcp_attribution`/`user_input_order`, all left
+  unread; its file and fetch probes stay inconclusive by construction
+  and both opt-in promotions still recover the edit and fetch.
+- Bumped the agentsummons dependency to v0.3.5.
+
 ## [0.5.1] - 2026-09-20
 
 ### Added
