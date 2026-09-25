@@ -55,6 +55,26 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 - Bumped the agentsummons dependency to v0.4.0, which adds Copilot CLI
   headless invocation.
+- The Copilot probe round was repeated for the other three harnesses
+  (failures, images, MCP, skills, subagents, and on Antigravity the
+  Claude and GPT-OSS model APIs), and the baselines were regenerated
+  over the fixtures plus the local corpora. Two adapters changed:
+  codex now classifies a unified-exec command that exits nonzero or an
+  `apply_patch` that fails ("Script failed") as a failed result (before,
+  no 0.15x failure was ever marked), and antigravity marks a
+  `run_command` whose templated content reports a nonzero exit as
+  failed and surfaces a `view_file` image (the new `media` key) as an
+  `image` content block; `replace_file_content` maps to kind `edit`.
+  Claude Code needed no change; its baseline gains the 2.1.274 peer
+  messaging and hand-back vocabulary (`SendMessage`,
+  `SubagentHandback`, `origin.handback`) from the interactive corpus,
+  plus `NotebookEdit` and the first observed MCP tool call. New
+  fixtures pin every shape (`claudecode/testdata/tools.jsonl`,
+  `codex/testdata/probes.jsonl`, `antigravity/testdata/probes.jsonl`).
+- `drift probe` gains two standard probes: "failure" (a nonzero exit
+  and a read of an absent path, asserting a failed result) and a
+  per-harness "subagent" probe asserting the harness's own delegation
+  tool, so those vocabularies stay in the baselines.
 
 ## [0.5.2] - 2026-09-25
 

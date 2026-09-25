@@ -28,6 +28,11 @@ type record struct {
 	// ErrorCode is numeric in observed data; raw tolerates either shape.
 	ErrorCode json.RawMessage `json:"error_code"`
 	ToolCalls []toolCall      `json:"tool_calls"`
+	// Media lists binary content a step returned to the model (a
+	// view_file of an image, 1.2.11): mime_type plus a uri into the
+	// conversation's .tempmediaStorage. The bytes are not in the
+	// transcript.
+	Media []mediaRef `json:"media"`
 
 	line     int
 	step     int
@@ -38,6 +43,36 @@ type record struct {
 type toolCall struct {
 	Name string          `json:"name"`
 	Args json.RawMessage `json:"args"`
+}
+
+type mediaRef struct {
+	MimeType string `json:"mime_type"`
+	URI      string `json:"uri"`
+
+	raw json.RawMessage
+}
+
+func (m *mediaRef) UnmarshalJSON(data []byte) error {
+	type plain mediaRef
+	var p plain
+	if err := json.Unmarshal(data, &p); err != nil {
+		return err
+	}
+	*m = mediaRef(p)
+	m.raw = parseutil.CloneRaw(data)
+	return nil
+}
+
+// exitCodeRe finds the exit code run_command results embed in their
+// templated content ("The command exited with code 1. Output: ..."), the
+// only record of a failed command: such steps carry no error key.
+var exitCodeRe = regexp.MustCompile(`(?m)^The command exited with code (\d+)\.`)
+
+// failedCommand reports whether a run_command result's content records a
+// nonzero exit.
+func failedCommand(content string) bool {
+	m := exitCodeRe.FindStringSubmatch(content)
+	return m != nil && m[1] != "0"
 }
 
 // pendingCall tracks an emitted tool_call awaiting its result. Records
@@ -279,11 +314,22 @@ func (p *parser) toolResult(rec *record) bool {
 		// No pending call: preserved as an orphan (counted in the report).
 		id = fmt.Sprintf("step-%d:orphan", rec.step)
 	}
+	// A failed step carries an error key (a missing file, a rejected
+	// edit, a fetch that 404s); a failed command carries none and only
+	// its templated exit line says so. Both are failed calls.
 	tr := &session.ToolResult{
 		ToolCallID: id,
 		ToolName:   name,
-		IsError:    rec.Error != "",
+		IsError:    rec.Error != "" || (name == "run_command" && failedCommand(rec.Content)),
 		Content:    []session.ContentBlock{{Kind: session.ContentText, Text: rec.Content}},
+	}
+	for i := range rec.Media {
+		m := &rec.Media[i]
+		kind := session.ContentOther
+		if strings.HasPrefix(m.MimeType, "image/") {
+			kind = session.ContentImage
+		}
+		tr.Content = append(tr.Content, session.ContentBlock{Kind: kind, MimeType: m.MimeType, URI: m.URI, Raw: m.raw})
 	}
 	parseutil.Truncate(tr, p.Opts.MaxPayloadBytes)
 	return p.Emit(session.Event{

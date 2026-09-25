@@ -54,6 +54,7 @@
           "CommandExecution",
           "Extension",
           "FileChange",
+          "McpToolCall",
           "Reasoning",
           "SubAgentActivity",
           "UserMessage"
@@ -85,6 +86,7 @@
         "metadata",
         "metadata.client_authored",
         "metadata.fallback_token_limit_override",
+        "metadata.inherited_user_message",
         "metadata.mcp_attribution",
         "metadata.user_input_order",
         "ordinal",

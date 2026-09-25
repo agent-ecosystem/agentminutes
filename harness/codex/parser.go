@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"strings"
 	"time"
 
 	"github.com/agent-ecosystem/agentminutes/harness"
@@ -568,14 +569,38 @@ func outputContent(raw json.RawMessage) ([]session.ContentBlock, error) {
 	return out, nil
 }
 
-// isErrorOutput detects failed tool calls: an explicit success=false, or a
-// shell-style JSON payload with a nonzero exit code.
+// isErrorOutput detects failed tool calls: an explicit success=false, a
+// shell-style JSON payload with a nonzero exit code, or (0.15x unified
+// exec) a block-array output whose first block reports "Script failed"
+// or whose chunk block carries a nonzero exit_code. Observed 0.157.0
+// shapes: a failing exec_command returns "Script completed" followed by
+// a JSON chunk {"exit_code":1,...}; a failing apply_patch returns
+// "Script failed" followed by "Script error: ...".
 func isErrorOutput(item *responseItem) bool {
 	if item.Success != nil {
 		return !*item.Success
 	}
 	raw := bytes.TrimSpace(item.Output)
 	if len(raw) == 0 {
+		return false
+	}
+	if raw[0] == '[' {
+		blocks, err := parseBlocks(raw)
+		if err != nil {
+			return false
+		}
+		for i := range blocks {
+			text := strings.TrimSpace(blocks[i].Text)
+			if i == 0 && strings.HasPrefix(text, "Script failed") {
+				return true
+			}
+			var chunk struct {
+				ExitCode *int `json:"exit_code"`
+			}
+			if strings.HasPrefix(text, "{") && json.Unmarshal([]byte(text), &chunk) == nil && chunk.ExitCode != nil {
+				return *chunk.ExitCode != 0
+			}
+		}
 		return false
 	}
 	var s string

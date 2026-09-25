@@ -82,6 +82,8 @@
       "keys": [
         "content",
         "created_at",
+        "error",
+        "media",
         "source",
         "status",
         "step_index",
@@ -140,6 +142,7 @@
         ],
         "tool_calls[].name": [
           "ask_question",
+          "call_mcp_tool",
           "command_status",
           "grep_search",
           "invoke_subagent",
@@ -148,6 +151,7 @@
           "manage_subagents",
           "manage_task",
           "read_url_content",
+          "replace_file_content",
           "run_command",
           "search_web",
           "send_message",

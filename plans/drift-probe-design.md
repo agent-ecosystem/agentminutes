@@ -109,9 +109,11 @@ schema terms so the assertion code is harness-agnostic:
 | qa | "Reply with exactly: pong" | `assistant_message` with text content |
 | shell | run `echo drift-probe`, report output | `tool_call` kind `execute` + paired `tool_result` |
 | file | create `probe.txt` containing a fixed string | `tool_call` kind `edit` (or write-mapped kind) + result |
-| search | glob `notes/*.txt`, grep a needle string in a seeded workdir (claude-code only; other harnesses search via the shell) | `tool_call`s named `Glob` and `Grep`, each with a result (name-exact: ToolSearch is also kind `search`, so a kind count passes vacuously) |
+| search | glob `notes/*.txt`, grep a needle string in a seeded workdir (claude-code and copilot, the harnesses with dedicated search tools; the others search via the shell) | `tool_call`s named `Glob`/`Grep` (claude-code) or `glob`/`grep` (copilot), each with a result (name-exact: ToolSearch is also kind `search`, so a kind count passes vacuously) |
 | fetch | fetch a stable URL, state its title | `tool_call` kind `fetch` + result |
 | multi | two tasks in one prompt (shell + file) | ≥2 `tool_call`s in one session |
+| failure | run `cat` on a missing file, read an absent path, keep going (added 2026-09-25 after the Copilot rounds showed failure shapes are the analysis-critical vocabulary the happy-path probes never produce) | a `tool_result` with `is_error` |
+| subagent | delegate `echo drift-probe-subagent` to a subagent (per-harness entries, name-exact on each harness's delegation tool: `invoke_subagent`, `Agent`, `spawn_agent`, `task`) | the named `tool_call` with a result |
 
 Implementation delta (first-consumer reconciliation): probes gained
 optional fields — `Harnesses` (restrict a probe to the harnesses where the

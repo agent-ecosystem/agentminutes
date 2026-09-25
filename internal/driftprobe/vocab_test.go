@@ -144,10 +144,13 @@ func TestEmbeddedBaselines(t *testing.T) {
 func TestScanFixturesClean(t *testing.T) {
 	fixtures := map[string]string{
 		"antigravity":                 filepath.Join("..", "..", "harness", "antigravity", "testdata", "transcript_full.jsonl"),
+		"antigravity-probes":          filepath.Join("..", "..", "harness", "antigravity", "testdata", "probes.jsonl"),
 		"claude-code":                 filepath.Join("..", "..", "harness", "claudecode", "testdata", "session.jsonl"),
 		"claude-code-search-fallback": filepath.Join("..", "..", "harness", "claudecode", "testdata", "search_fallback.jsonl"),
+		"claude-code-tools":           filepath.Join("..", "..", "harness", "claudecode", "testdata", "tools.jsonl"),
 		"codex":                       filepath.Join("..", "..", "harness", "codex", "testdata", "rollout.jsonl"),
 		"codex-item-stream":           filepath.Join("..", "..", "harness", "codex", "testdata", "item_stream.jsonl"),
+		"codex-probes":                filepath.Join("..", "..", "harness", "codex", "testdata", "probes.jsonl"),
 		"copilot":                     filepath.Join("..", "..", "harness", "copilot", "testdata", "events.jsonl"),
 		"copilot-subagents":           filepath.Join("..", "..", "harness", "copilot", "testdata", "subagents.jsonl"),
 		"copilot-tools":               filepath.Join("..", "..", "harness", "copilot", "testdata", "tools.jsonl"),

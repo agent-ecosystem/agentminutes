@@ -83,13 +83,14 @@ var knownTypes = func() map[string]bool {
 // toolKinds maps Antigravity tool-call names onto ACP tool kinds. Unlisted
 // names classify as ToolKindOther.
 var toolKinds = map[string]session.ToolKind{
-	"run_command":      session.ToolKindExecute,
-	"write_to_file":    session.ToolKindEdit,
-	"view_file":        session.ToolKindRead,
-	"list_dir":         session.ToolKindRead,
-	"grep_search":      session.ToolKindSearch,
-	"search_web":       session.ToolKindFetch,
-	"read_url_content": session.ToolKindFetch,
+	"run_command":          session.ToolKindExecute,
+	"write_to_file":        session.ToolKindEdit,
+	"replace_file_content": session.ToolKindEdit,
+	"view_file":            session.ToolKindRead,
+	"list_dir":             session.ToolKindRead,
+	"grep_search":          session.ToolKindSearch,
+	"search_web":           session.ToolKindFetch,
+	"read_url_content":     session.ToolKindFetch,
 }
 
 func kindFor(name string) session.ToolKind {

@@ -223,7 +223,68 @@ func DefaultProbes() []Probe {
 			Retry:   "Use your tools for both tasks now: run `echo drift-probe-multi` with your shell tool, and write multi.txt (content: multi) with your file tool.",
 			Missing: missingToolCalls(2),
 		},
+		{
+			// Failure shapes are what analyses key on and what the
+			// happy-path probes never produce: a command that exits
+			// nonzero and a read of an absent path, each recorded
+			// differently per harness (Copilot marks the first
+			// success: true with an exit code, the second error.code
+			// failure). The assertion is any failed result.
+			Name:    "failure",
+			Prompt:  "Do both of these with your tools and keep going after each one fails: (1) run the shell command: cat drift-probe-missing.txt (the file does not exist); (2) read the file /tmp/drift-probe-absent/nothing.txt with your file-reading tool. Then reply with exactly: done",
+			Retry:   "You must actually attempt both failing operations with your tools, not reason about them: run `cat drift-probe-missing.txt` with your shell tool, then read /tmp/drift-probe-absent/nothing.txt with your file-reading tool. Report each error, then reply: done",
+			Missing: missingToolError,
+		},
+		{
+			// Delegation is dedicated-tool vocabulary on every harness
+			// and the recording differs on each (separate files, sibling
+			// conversations, inline records), so the shapes must be seen
+			// to stay in the baseline. Name-exact per harness.
+			Name:      "subagent",
+			Harnesses: []harness.ID{harness.Antigravity},
+			Prompt:    subagentPrompt,
+			Retry:     subagentRetry,
+			Missing:   missingNamedTools("invoke_subagent"),
+		},
+		{
+			Name:      "subagent",
+			Harnesses: []harness.ID{harness.ClaudeCode},
+			Prompt:    subagentPrompt,
+			Retry:     subagentRetry,
+			Missing:   missingNamedTools("Agent"),
+		},
+		{
+			Name:      "subagent",
+			Harnesses: []harness.ID{harness.Codex},
+			Prompt:    subagentPrompt,
+			Retry:     subagentRetry,
+			Missing:   missingNamedTools("spawn_agent"),
+		},
+		{
+			Name:      "subagent",
+			Harnesses: []harness.ID{harness.Copilot},
+			Prompt:    subagentPrompt,
+			Retry:     subagentRetry,
+			Missing:   missingNamedTools("task"),
+		},
 	}
+}
+
+const (
+	subagentPrompt = "Delegate this to a subagent using your agent-spawning tool (do not do it yourself): run the shell command `echo drift-probe-subagent` and report its exact output. When the subagent reports back, reply with exactly the output it reported."
+	subagentRetry  = "You must actually spawn a subagent with your delegation tool, not run the command yourself. Delegate: run `echo drift-probe-subagent` and report the output. Then reply with exactly what the subagent reported."
+)
+
+// missingToolError requires at least one tool_result flagged as an error.
+func missingToolError(sessions []*session.Session) []string {
+	for _, s := range sessions {
+		for i := range s.Events {
+			if ev := &s.Events[i]; ev.Kind == session.KindToolResult && ev.ToolResult.IsError {
+				return nil
+			}
+		}
+	}
+	return []string{"tool_result with is_error"}
 }
 
 func missingAssistantText(sessions []*session.Session) []string {
