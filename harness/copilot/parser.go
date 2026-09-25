@@ -255,6 +255,21 @@ func (p *parser) record(data []byte) bool {
 			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed session.info: %v", err))
 		}
 		return p.system(&rec, data, si.Message)
+	case "skill.invoked":
+		// The SKILL.md body the skill tool delivered (frontmatter
+		// stripped). The following skill.context_delivered_ref hashes
+		// exactly this content and records the <skill-context> wrapper
+		// it was delivered in; the wrapper stays in that record's
+		// details. The role the model received it in is not recorded,
+		// so this stays a system event with the body as its text rather
+		// than a synthesized user_message (Claude Code's vehicle).
+		var si struct {
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal(rec.Data, &si); err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed skill.invoked: %v", err))
+		}
+		return p.system(&rec, data, si.Content)
 	}
 	if recordTypes[rec.Type] || isTelemetryType(rec.Type) {
 		// Turn boundaries, permission prompts, usage checkpoints, shutdown

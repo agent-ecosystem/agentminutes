@@ -108,8 +108,15 @@ func TestSkillsFixture(t *testing.T) {
 		if ev.AgentID != "" {
 			t.Errorf("--agent runs on the main agent; event %s has agent id %q", ev.Kind, ev.AgentID)
 		}
-		if ev.Kind == session.KindSystem && ev.System.Subtype == "skill.invoked" && !bytes.Contains(ev.System.Details, []byte("# Greeter")) {
-			t.Error("skill content must be preserved in details")
+		if ev.Kind == session.KindSystem && ev.System.Subtype == "skill.invoked" {
+			if !bytes.Contains(ev.System.Details, []byte("# Greeter")) {
+				t.Error("skill content must be preserved in details")
+			}
+			// The delivered body is the record's text: consumers tracing
+			// model-visible content read Text, not Details.
+			if !strings.HasPrefix(ev.System.Text, "# Greeter\n") || !strings.Contains(ev.System.Text, "reply with exactly: greeted") {
+				t.Errorf("skill.invoked text = %q, want the SKILL.md body", ev.System.Text)
+			}
 		}
 	}
 }

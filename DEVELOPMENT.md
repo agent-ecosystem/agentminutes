@@ -69,6 +69,7 @@ Write the native-to-event mapping table in the inventory doc before coding:
 
 - Model-visible conversation records become events (`user_message`, `assistant_message`, `thinking`, `tool_call`, `tool_result`).
 - Harness telemetry that is preserved-but-not-conversation becomes `system` events with a namespaced subtype and the payload in `Details`.
+- **A `system` event's `Text` is the record's model-visible text, when the record carries one.** Downstream consumers (skillxp's trace package is the first) locate a phrase across a session by reading `user_message` content, `tool_result` content, and `system.Text`; they never parse `Details`, whose shape is per harness and per release. A record whose text lives only in `Details` is therefore invisible to them, and the inventory's "carries model-visible content" column is the checklist for which records need a `Text` case: the system prompt, injected instructions and reminders, a delivered skill body, a harness-authored prompt. Fill `Text` with the record's primary string, bare (no wrapper the harness adds on delivery; that stays in `Details`), and do not fill it for bytes, ids, paths, or structured listings that have no single text. This is translation, not a judgment call: it asserts nothing about the role the model received the text in. When the role matters and the transcript records it (Claude Code's `isMeta` user records), the record is a `user_message` with origin `harness` instead; when it is not recorded (Copilot's `skill.invoked`, whose delivery record hashes the body but names no role), the event stays `system` with the body as `Text`, and a conversation-shaped synthesis is a transform's job.
 - Pure bookkeeping with no model-visible content goes on an explicit, enumerated **skip list**, counted via `OnSkip`. Byte-duplicate echoes of other records also qualify.
 - Decide the loudness boundary for unknown subtypes: unknown record *types* and unknown conversation shapes stay loud; unknown telemetry subtypes may map to `system` events when the payload is preserved in full and the vocabulary churns per release (the Codex `event_msg` precedent).
 - Exactly one `assistant_message` per API message (the accounting anchor), even if all its content became thinking or tool calls. Decide what closes the anchor and what usage attaches to it.
@@ -149,6 +150,16 @@ AGENTMINUTES_LOCAL_<NAME>_TRANSCRIPTS=<dir> go test ./harness/<name>/ -run 'Test
 ```
 
 Then end-to-end: build the CLI and run `detect`, `convert` (both formats), `stats`, and `sessions --harness <name>` against a real transcript root. Auto-detection must pick the right adapter with the others registered.
+
+Then the text audit, which finds the `system` events whose payload carries a long string that `Text` leaves empty; each row is either a `Text` case to add or a documented non-text (bytes, a path, a listing):
+
+```bash
+for f in <transcripts>; do agentminutes convert --format jsonl --permissive "$f"; done \
+| jq -c 'select(.kind=="system" and ((.system.text // "")=="")) | .system as $s
+    | [$s.details | paths(type=="string" and length>80)]
+    | map({subtype:$s.subtype, path:(map(if type=="number" then "[]" else . end)|join("."))}) | .[]' \
+| sort | uniq -c | sort -rn
+```
 
 Then the drift loop, once per probe round: `drift scan` over the local corpus names every key, type, and discriminator value the baseline has not seen (tool names, error codes, provider ids), which is the list of what to inventory or widen next; regenerate the baseline over the fixtures plus the corpus root when the round is reconciled (`TestScanFixturesClean` pins the fixtures against it, so an unregenerated baseline fails the suite). Finally `drift probe --harness <id> --force --keep`, which exercises the eight standard probes end to end and is the check that the search and subagent probes' tool names are right.
 

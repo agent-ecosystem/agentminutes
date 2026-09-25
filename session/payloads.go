@@ -155,7 +155,9 @@ type SystemEvent struct {
 	// Level is the harness-native severity, when present (e.g. "error").
 	Level string `json:"level,omitempty" schema:"ext"`
 
-	// Text is the human-readable content, when present.
+	// Text is the record's model-visible text, when it carries one (a
+	// system prompt, an injected reminder, a delivered skill body). The
+	// harness's delivery wrapper, if any, stays in Details.
 	Text string `json:"text,omitempty" schema:"ext"`
 
 	// Details is the record's structured payload, verbatim.

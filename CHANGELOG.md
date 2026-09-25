@@ -6,6 +6,14 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Fixed
+
+- Copilot CLI: `skill.invoked` system events now carry the delivered
+  SKILL.md body as `text` (it was only in `details`), so consumers that
+  trace model-visible text see a skill load as harness-injected content
+  rather than only at model output (#3). The body is byte-exact what the
+  harness's `skill.context_delivered_ref` hashes as delivered.
+
 ## [0.6.0] - 2026-09-25
 
 ### Added
