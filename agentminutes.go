@@ -151,3 +151,145 @@ func Locate(id harness.ID, sessionID string) (harness.SessionRef, error) {
 	}
 	return l.Locate(root, sessionID)
 }
+
+// TaskStats is the task-scope summary of one session: every transcript
+// the harness wrote for it (the parent and its subagents, gathered through
+// the harness's Locator) summarized individually and as one aggregate. It
+// is what "how much did this task cost" means when a harness records
+// subagent conversations in their own transcripts; for a harness that
+// records them inline the aggregate is the parent's own Stats and the
+// per-agent split is already in Task.ByAgent.
+type TaskStats struct {
+	SchemaVersion string `json:"agentminutes_schema" schema:"ext"`
+	Harness       string `json:"harness" schema:"ext"`
+	SessionID     string `json:"session_id" schema:"acp"`
+
+	// Join names how the subagent transcripts were found (a harness.Join*
+	// value): a consumer's measure of how much to trust the grouping.
+	Join string `json:"join" schema:"ext"`
+
+	// Transcripts are the per-transcript summaries, the parent first.
+	Transcripts []TranscriptStats `json:"transcripts" schema:"ext"`
+
+	// Task aggregates the transcripts (session.SumStats), with ByAgent
+	// keyed by subagent id (the parent under the empty key), merged with
+	// any inline per-agent split the parent already carried.
+	Task *session.Stats `json:"task" schema:"ext"`
+
+	// Skipped lists what the gather could not include (harness.Task's
+	// Skipped): the task is under-counted by exactly these.
+	Skipped []harness.TaskSkip `json:"skipped,omitempty" schema:"ext"`
+}
+
+// TranscriptStats is one transcript's contribution to a TaskStats.
+type TranscriptStats struct {
+	Path       string         `json:"path" schema:"ext"`
+	SubagentID string         `json:"subagent_id,omitempty" schema:"ext"`
+	IsSubagent bool           `json:"is_subagent,omitempty" schema:"ext"`
+	Stats      *session.Stats `json:"stats" schema:"ext"`
+}
+
+// Task gathers and summarizes the whole task a transcript belongs to: the
+// transcript at path is the parent, its subagent transcripts are resolved
+// through the harness's Locator under root (its DefaultRoot when root is
+// empty), and every transcript is parsed with opts and summarized.
+// Transforms, when given, are applied to each transcript's event stream.
+func Task(id harness.ID, root, path string, opts harness.Options, transforms ...session.Transform) (*TaskStats, error) {
+	a, err := AdapterFor(id)
+	if err != nil {
+		return nil, err
+	}
+	l, err := LocatorFor(id)
+	if err != nil {
+		return nil, err
+	}
+	if root == "" {
+		if root, err = l.DefaultRoot(); err != nil {
+			return nil, err
+		}
+	}
+	parent, _, err := harness.BuildRef(a, path, harness.ScanOptions{})
+	if err != nil {
+		return nil, err
+	}
+	task, err := l.Gather(root, parent)
+	if err != nil {
+		return nil, err
+	}
+	return summarizeTask(a, task, opts, transforms)
+}
+
+// summarizeTask parses every transcript of a gathered task and builds the
+// summary.
+func summarizeTask(a harness.Adapter, task harness.Task, opts harness.Options, transforms []session.Transform) (*TaskStats, error) {
+	out := &TaskStats{
+		SchemaVersion: session.SchemaVersion,
+		Harness:       string(a.ID()),
+		// Identity comes from the refs, which carry layout-derived ids
+		// where the format records none in-band (Antigravity).
+		SessionID: task.Parent.Meta.SessionID,
+		Join:      task.Join,
+		Skipped:   task.Skipped,
+	}
+	refs := append([]harness.SessionRef{task.Parent}, task.Subagents...)
+	parts := make([]*session.Stats, 0, len(refs))
+	byAgent := map[string]*session.AgentStats{}
+	for i, ref := range refs {
+		s, err := parseFile(a, ref.Path, opts, transforms)
+		if err != nil {
+			return nil, err
+		}
+		st := s.Stats()
+		ts := TranscriptStats{Path: ref.Path, Stats: st}
+		if i > 0 {
+			ts.IsSubagent = true
+			ts.SubagentID = ref.Meta.SubagentID
+			if ts.SubagentID == "" {
+				// Antigravity children are unmarked; their conversation
+				// id (layout-derived, on the ref) is the identity.
+				ts.SubagentID = ref.Meta.SessionID
+			}
+		}
+		out.Transcripts = append(out.Transcripts, ts)
+		parts = append(parts, st)
+		switch {
+		case i == 0 && st.ByAgent != nil:
+			// The parent already splits inline agents; keep that split.
+			for k, v := range st.ByAgent {
+				mergeAgent(byAgent, k, v)
+			}
+		case i == 0:
+			mergeAgent(byAgent, "", st.AsAgent())
+		default:
+			mergeAgent(byAgent, ts.SubagentID, st.AsAgent())
+		}
+	}
+	out.Task = session.SumStats(out.Harness, parts...)
+	if len(byAgent) > 1 {
+		for _, v := range byAgent {
+			if v.Totals != nil {
+				v.Totals.TotalPromptTokens = session.TotalPromptTokens(out.Harness, v.Totals)
+			}
+		}
+		out.Task.ByAgent = byAgent
+	}
+	return out, nil
+}
+
+func mergeAgent(dst map[string]*session.AgentStats, key string, v *session.AgentStats) {
+	if cur := dst[key]; cur != nil {
+		cur.Add(v)
+		return
+	}
+	dst[key] = v
+}
+
+// parseFile parses one transcript file with the adapter.
+func parseFile(a harness.Adapter, path string, opts harness.Options, transforms []session.Transform) (*session.Session, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close() //nolint:errcheck // read-only
+	return harness.Parse(a, f, opts, transforms...)
+}

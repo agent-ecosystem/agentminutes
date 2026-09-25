@@ -63,12 +63,15 @@ field is set per event, matching its `kind`:
   own session with its own `totals`. Where the harness records it
   (claude-code, codex), a subagent's meta shares the parent's
   `session_id` and carries `subagent_id` with `is_subagent: true`, so
-  grouping a task is a `session_id` match. Task-scope analysis must
-  gather all of a session's transcripts first; see
-  [Subagents](/docs/subagents/). Copilot CLI is the exception: its
-  subagents write into the parent transcript, so one session record
-  already covers the task, and `agent_id` is what separates the
-  parent's events from each subagent's.
+  grouping a task is a `session_id` match. Copilot CLI is the
+  exception: its subagents write into the parent transcript, so one
+  session record already covers the task, and `agent_id` is what
+  separates the parent's events from each subagent's. Task-scope
+  numbers come from `stats --include-subagents` (or
+  `agentminutes.Task`), which gathers a session's transcripts and
+  reports an aggregate plus a `by_agent` split; a single session's
+  `stats` carries `by_agent` itself when its events span more than one
+  agent. See [Subagents](/docs/subagents/#task-summaries).
 - **`tool_call` and `tool_result` stay separate, in stream order.**
   Ordering is data. Interleaving, parallel tool execution, and retries
   are visible in the sequence. `Session.ToolInteractions()` provides the
@@ -79,7 +82,23 @@ field is set per event, matching its `kind`:
   with retrieval metrics promoted to `fetch` (URL, raw bytes fetched,
   status, duration) when present. For summarizing pipelines like Claude
   Code's WebFetch, comparing `fetch.raw_bytes` against the content size
-  measures the pipeline's compression directly.
+  measures the pipeline's compression directly. An image the model saw
+  is an `image` content block holding the harness's own descriptor:
+  the bytes inline for Claude Code, a path beside the transcript for
+  Antigravity, and a reference to a separate asset record for Copilot
+  CLI, so the block is always present and its size is not comparable.
+- **`is_error` means the call failed as far as the model could tell,
+  and fetch failures are the exception to compare with care.** Every
+  adapter marks a tool that could not run (a denied or absent path, an
+  edit whose target text is missing) and a shell command that exited
+  nonzero as failed, including harnesses that record the nonzero exit
+  as a successful tool run. Fetch failures diverge: Copilot CLI and
+  Antigravity flag a 404, Claude Code does not (the status is in
+  `fetch.status_code` and the content is prose about the failure), and
+  Codex records nothing that distinguishes a failed fetch from a
+  successful one. `stats.tool_errors` inherits these conventions, so a
+  cross-harness error rate needs the fetch calls separated out; see
+  [Harness Support](/docs/harnesses/#validation-coverage).
 - **Every event points back at its source.** `provenance` carries the
   1-based line range in the native transcript, and optionally the
   verbatim records (`--keep-raw`).

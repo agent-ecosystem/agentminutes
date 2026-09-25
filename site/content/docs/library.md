@@ -98,3 +98,37 @@ fmt.Println(len(updates), loss.DroppedEvents, loss.DroppedFields)
 `agentminutes.Scan` and `agentminutes.Locate` mirror the CLI's `sessions`
 command; see [Session Discovery](/docs/discovery/) for the API and its
 accounting discipline.
+
+## Task summaries
+
+`agentminutes.Task` is the library form of `stats --include-subagents`,
+producing a task summary:
+given a harness and a parent transcript's path, it gathers the
+subagent transcripts through the harness's `Locator`, parses each, and
+returns a `TaskStats` with the per-transcript summaries, the aggregate,
+and the per-agent split.
+
+```go
+ts, err := agentminutes.Task(harness.ClaudeCode, "", path, harness.Options{})
+if err != nil {
+    return err
+}
+fmt.Println(ts.Join, len(ts.Transcripts), ts.Task.Totals.TotalPromptTokens)
+for id, a := range ts.Task.ByAgent {
+    fmt.Println(id, a.ToolCalls) // "" is the parent
+}
+```
+
+The pieces are usable on their own. `harness.Locator.Gather` returns the
+`harness.Task` (parent ref, subagent refs, join, and a `Skipped` list
+of what it could not include) without parsing, for callers that want
+the files; `session.SumStats` aggregates summaries you already hold,
+re-deriving `total_prompt_tokens` for the harness's convention so a sum
+never mixes conventions (`session.TotalPromptTokens` is that derivation
+on its own, for usage you sum yourself); and a session's own
+`Stats().ByAgent` carries the inline split for a harness that records
+subagents in the parent transcript. `Gather` is part of the
+`harness.Locator` interface, so a locator implemented outside this
+module must add it; returning the parent alone with
+`harness.JoinInline` is the minimal valid implementation. See
+[Subagents](/docs/subagents/#task-summaries) for the semantics.

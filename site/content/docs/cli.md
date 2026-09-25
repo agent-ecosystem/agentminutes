@@ -225,6 +225,29 @@ resolves.
 first-observed order, so more than one entry means the serving model
 changed mid-session.
 
+### Task summaries
+
+A session that delegated to subagents is more than one transcript on
+most harnesses. `--include-subagents` treats the given transcript as
+the parent, gathers its subagent transcripts through the harness's own
+discovery rules (under `--root`, or the default root), and prints a
+task summary: each transcript's `stats` on its own, an aggregate
+`task` in the same shape, and a `by_agent` split with the parent under
+the empty key. `join` names how the subagents were found (`layout`,
+`session_id`, `content`, or `inline`), and `skipped`, when present,
+lists what the gather could not include, with a reason, so a summary
+that is short says so. Nothing is counted twice, and a harness that
+records subagents inline (Copilot CLI) contributes one transcript whose
+split comes from the events.
+
+```sh
+agentminutes stats --include-subagents ~/.claude/projects/<project>/<session-id>.jsonl
+```
+
+See [Subagents](/docs/subagents/#task-summaries) for the output
+walked through on a real session and what each harness records
+underneath.
+
 ### Telemetry promotions
 
 The summary's `system_by_subtype` counts surface actions a harness

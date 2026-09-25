@@ -172,6 +172,30 @@ func (a Adapter) Locate(root, sessionID string) (harness.SessionRef, error) {
 	return ref, nil
 }
 
+// Gather implements harness.Locator: the subagent transcripts live under
+// <session-id>/subagents/ beside the parent, so they derive from the
+// parent's path whether or not the ref already lists them. Subagents do
+// not spawn subagents (the Agent tool is unavailable to them), so there is
+// no nesting to follow.
+func (a Adapter) Gather(_ string, parent harness.SessionRef) (harness.Task, error) {
+	task := harness.Task{Parent: parent, Join: harness.JoinLayout}
+	paths := parent.SubagentPaths
+	if paths == nil {
+		sessionDir := strings.TrimSuffix(parent.Path, ".jsonl")
+		if info, err := os.Stat(sessionDir); err == nil && info.IsDir() {
+			paths = a.collectSubagents(sessionDir, harness.ScanOptions{})
+		}
+	}
+	for _, p := range paths {
+		ref, _, err := harness.BuildRef(a, p, harness.ScanOptions{})
+		if err != nil {
+			return harness.Task{}, err
+		}
+		task.Subagents = append(task.Subagents, ref)
+	}
+	return task, nil
+}
+
 func scanError(path string, err error) error {
 	return &harness.ScanError{Harness: harness.ClaudeCode, Path: path, Err: err}
 }

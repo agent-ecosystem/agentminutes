@@ -245,3 +245,46 @@ func TestDefaultRunnersAlphabetical(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckTaskJoin pins the subagent probe's file-level check on a
+// synthetic Claude Code task: a parent with a subagent file passes (the
+// join finds the subagent and the totals sum), and a parent whose
+// subagent file is missing reports the join as missing.
+func TestCheckTaskJoin(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "-tmp-proj")
+	line := func(sessionID, uuid, parent, ts string, sidechain bool, agentID, kind, message string) string {
+		side := "false"
+		if sidechain {
+			side = "true"
+		}
+		agent := ""
+		if agentID != "" {
+			agent = `"agentId":"` + agentID + `",`
+		}
+		return `{"parentUuid":` + parent + `,"isSidechain":` + side + `,` + agent + `"type":"` + kind + `","message":` + message + `,"uuid":"` + uuid + `","timestamp":"` + ts + `","userType":"external","entrypoint":"cli","cwd":"/tmp/x","sessionId":"` + sessionID + `","version":"2.1.274"}` + "\n"
+	}
+	asst := `{"id":"m","model":"x","role":"assistant","content":[{"type":"text","text":"ok"}],"usage":{"input_tokens":3,"output_tokens":4,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}`
+	write := func(rel, content string) string {
+		p := filepath.Join(proj, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	parent := write("p-1.jsonl", line("p-1", "u1", "null", "2026-09-25T10:00:00.000Z", false, "", "user", `{"role":"user","content":"go"}`)+line("p-1", "a1", `"u1"`, "2026-09-25T10:00:01.000Z", false, "", "assistant", asst))
+	write("p-1/subagents/agent-c1.jsonl", line("p-1", "u2", "null", "2026-09-25T10:00:00.500Z", true, "c1", "user", `{"role":"user","content":"sub"}`)+line("p-1", "a2", `"u2"`, "2026-09-25T10:00:00.900Z", true, "c1", "assistant", asst))
+	lonely := write("p-2.jsonl", line("p-2", "u3", "null", "2026-09-25T10:00:00.000Z", false, "", "user", `{"role":"user","content":"go"}`))
+
+	ctx := CheckContext{Harness: harness.ClaudeCode, Locator: claudecode.Adapter{}, Root: root, Files: []string{parent}}
+	if f := checkTaskJoin(ctx); len(f) != 0 {
+		t.Errorf("joined task reported findings %v", f)
+	}
+	ctx.Files = []string{lonely}
+	if f := checkTaskJoin(ctx); len(f) != 1 || !strings.Contains(f[0], "layout join") {
+		t.Errorf("parent without subagent: findings = %v", f)
+	}
+}

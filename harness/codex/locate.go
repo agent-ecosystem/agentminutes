@@ -1,6 +1,7 @@
 package codex
 
 import (
+	"errors"
 	"iter"
 	"os"
 	"path/filepath"
@@ -122,6 +123,38 @@ func (a Adapter) Locate(root, sessionID string) (harness.SessionRef, error) {
 		return harness.SessionRef{}, err
 	}
 	return ref, nil
+}
+
+// Gather implements harness.Locator. A subagent rollout records the root
+// thread's id as its session_id at every spawn depth, so the task is
+// every subagent ref under root whose session id matches the parent's.
+// The scan is bounded by the parent's start time (a subagent cannot start
+// before its root thread). A parent that is itself a subagent (a
+// mid-tree thread) gathers nothing: the task is grouped by its root.
+func (a Adapter) Gather(root string, parent harness.SessionRef) (harness.Task, error) {
+	task := harness.Task{Parent: parent, Join: harness.JoinSessionID}
+	if parent.Meta.IsSubagent || parent.Meta.SessionID == "" {
+		return task, nil
+	}
+	opts := harness.ScanOptions{}
+	if parent.StartedAt != nil {
+		opts.Since = *parent.StartedAt
+	}
+	for ref, err := range a.Scan(root, opts) {
+		if err != nil {
+			// An unreadable rollout cannot be checked for the session id,
+			// so it might be this task's; report it rather than drop it.
+			var se *harness.ScanError
+			if errors.As(err, &se) && se.Path != "" {
+				task.Skipped = append(task.Skipped, harness.TaskSkip{Path: se.Path, Reason: "unreadable candidate: " + se.Err.Error()})
+			}
+			continue
+		}
+		if ref.Meta.IsSubagent && ref.Meta.SessionID == parent.Meta.SessionID && ref.Path != parent.Path {
+			task.Subagents = append(task.Subagents, ref)
+		}
+	}
+	return task, nil
 }
 
 func scanError(path string, err error) error {

@@ -135,3 +135,13 @@ func TestLocalScan(t *testing.T) {
 	}
 	locatetest.Invariant(t, Adapter{}, root)
 }
+
+// TestLocalTask pins the subagent join on the real corpus: every subagent
+// transcript discovery finds is gathered by exactly one task.
+func TestLocalTask(t *testing.T) {
+	root := os.Getenv("AGENTMINUTES_LOCAL_ANTIGRAVITY_TRANSCRIPTS")
+	if root == "" {
+		t.Skip("set AGENTMINUTES_LOCAL_ANTIGRAVITY_TRANSCRIPTS to run against real transcripts")
+	}
+	locatetest.TaskInvariant(t, Adapter{}, root)
+}

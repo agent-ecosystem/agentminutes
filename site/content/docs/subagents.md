@@ -1,34 +1,154 @@
 ---
 title: Subagents
-description: How subagent transcripts are stored, how they tie back to the parent session, and how to analyze a whole task.
+description: Task summaries across subagent transcripts, and how each harness records delegation underneath.
 icon: account_tree
 weight: 550
 ---
 
 Harnesses can delegate work to subagents: separate conversations with
-their own context windows, tool loops, and token usage. Claude Code
-records each subagent as its own transcript file next to the parent's.
-This is easy to miss, and missing it distorts every downstream number.
-If you parse only the file named by the session ID, you see the
-delegation happen, and none of the delegated work: the tool calls, the
-files read, and roughly all of the subagents' token usage are in files
-you never opened.
+their own context windows, tool loops, and token usage. Three of the
+four supported harnesses write each subagent conversation somewhere
+other than the parent transcript, and the fourth writes it inside the
+parent. Either way, a naive reading of one file gets the task wrong: it
+either misses the delegated work entirely (the tool calls, the files
+read, and roughly all of the subagents' token usage are in files you
+never opened) or it counts the subagent's work as the parent's.
 
-All the harnesses can spawn subagents, and their recordings differ in
-exactly the ways that bite an analysis. This page walks the Claude Code
-mechanics in depth (where the files live, the three ways they tie back
-to the parent, and how to analyze a task as a whole), then covers what
-Codex, Antigravity, and Copilot CLI do instead. Everything here was validated against
-live spawn probes on the versions in
-[Harness Support](/docs/harnesses/).
+agentminutes does that accounting for you: a **task summary** is the
+summary of a whole task, every transcript the harness wrote for it
+gathered and aggregated without double counting. This page covers task
+summaries first, then what each harness records underneath, for when
+you need to know how much to trust a grouping.
+
+## Task summaries
+
+`stats --include-subagents` produces a task summary. It treats a
+transcript as a task's parent,
+gathers the subagent transcripts the harness wrote for it through the
+harness's own discovery rules, and reports three things in one
+document:
+
+- Every transcript summarized on its own
+- An aggregate in the same shape as a single `stats` summary
+- A per-agent split.
+
+```sh
+agentminutes stats --include-subagents ~/.claude/projects/<project>/<session-id>.jsonl
+```
+
+Trimmed output for a real one-delegation session (Claude Code 2.1.274):
+
+```json
+{
+  "agentminutes_schema": "0.1.0",
+  "harness": "claude-code",
+  "session_id": "f6f82cf7-af5c-45d5-9931-d07ea3cf0d92",
+  "join": "layout",
+  "transcripts": [
+    {
+      "path": "~/.claude/projects/<project>/<session-id>.jsonl",
+      "stats": {
+        "tool_calls": 1,
+        "tool_calls_by_name": { "Agent": 1 },
+        "totals": {
+          "input_tokens": 34,
+          "output_tokens": 199,
+          "cache_read_input_tokens": 35232,
+          "cache_creation_input_tokens": 8466,
+          "total_prompt_tokens": 43732
+        },
+        "final_answer": "drift-probe-subagent"
+      }
+    },
+    {
+      "path": "~/.claude/projects/<project>/<session-id>/subagents/agent-ac5dc0a183ec99c2b.jsonl",
+      "subagent_id": "ac5dc0a183ec99c2b",
+      "is_subagent": true,
+      "stats": {
+        "tool_calls": 1,
+        "tool_calls_by_name": { "Bash": 1 },
+        "totals": {
+          "input_tokens": 34,
+          "output_tokens": 151,
+          "cache_read_input_tokens": 13236,
+          "cache_creation_input_tokens": 14984,
+          "total_prompt_tokens": 28254
+        }
+      }
+    }
+  ],
+  "task": {
+    "tool_calls": 2,
+    "tool_calls_by_name": { "Agent": 1, "Bash": 1 },
+    "totals": {
+      "input_tokens": 68,
+      "output_tokens": 350,
+      "cache_read_input_tokens": 48468,
+      "cache_creation_input_tokens": 23450,
+      "total_prompt_tokens": 71986
+    },
+    "final_answer": "drift-probe-subagent",
+    "by_agent": {
+      "": { "tool_calls": 1, "totals": { "total_prompt_tokens": 43732, "output_tokens": 199 } },
+      "ac5dc0a183ec99c2b": { "tool_calls": 1, "totals": { "total_prompt_tokens": 28254, "output_tokens": 151 } }
+    }
+  }
+}
+```
+
+How to read it:
+
+- **`transcripts`** is the parent first, then each subagent transcript,
+  each with its own complete `stats`. Conversation-scope questions
+  ("what did the parent conversation cost") read the first entry.
+- **`task`** is the aggregate: counts and per-name maps summed, models
+  unioned, the time span covering every transcript, the parent's final
+  answer, and `totals` summed with `total_prompt_tokens` re-derived
+  for the harness's convention, so the aggregate is as comparable
+  across harnesses as a single summary is. Task-scope questions
+  ("what did this task cost") read here.
+- **`task.by_agent`** splits the task per agent: the parent under the
+  empty key, each subagent under its id. It is the same view whether
+  the harness wrote separate files or interleaved the subagent into the
+  parent transcript.
+- **`join`** names how the subagent transcripts were found, which is
+  how much to trust the grouping: `layout` (Claude Code, files in a
+  position derived from the parent's path), `session_id` (Codex, sibling
+  files that record the parent's id in-band), `content` (Antigravity,
+  children named in the parent's tool results: a heuristic), or
+  `inline` (Copilot CLI, one file, split by `agent_id`).
+- **`skipped`**, when present, lists what the gather could not include
+  (a candidate transcript it could not read, a child conversation no
+  longer in the store) with a reason, so a task summary that is short
+  says so rather than looking complete.
+
+Nothing is counted twice. Each transcript contributes its own numbers,
+a subagent's transcript is never also the parent's, and a harness that
+records subagents inline contributes one transcript whose per-agent
+split comes from the events. Nested delegation is followed: a
+subagent's own subagents are gathered into the same task.
+
+Two things a task summary does not do. It does not change what a plain
+`stats` on one file reports, because conversation scope is a
+legitimate question, and it does not invent usage: a harness that
+records none (Antigravity) or none per message (Copilot CLI) has no
+`totals` at task scope either, so absence stays distinguishable from
+zero. `--root` points discovery at a non-default transcript root, and
+`--promote` applies to every transcript in the task.
+
+In Go, `agentminutes.Task` returns the same summary as a `TaskStats`
+value, `harness.Locator.Gather` exposes the discovery step on its own,
+and `session.SumStats` does the aggregation for summaries you already
+hold; see [Go Library](/docs/library/#task-scope-summaries).
 
 ## What the parent transcript shows
 
-In the parent session, a delegation is an ordinary `tool_call` named
-`Agent`, whose input carries the delegated `prompt` and a short
-`description`. The matching `tool_result` contains the text the
-subagent returned, and its `enrichment` carries the harness sidecar
-data, including the key that names the subagent:
+In the parent session, a delegation is an ordinary `tool_call` (named
+`Agent` on Claude Code, `spawn_agent` on Codex, `invoke_subagent` on
+Antigravity, `task` on Copilot CLI) whose input carries the delegated
+prompt. The matching `tool_result` contains the text the subagent
+returned, and its `enrichment` carries the harness sidecar data,
+including whatever key names the subagent:
 
 ```json
 {
@@ -46,217 +166,71 @@ data, including the key that names the subagent:
 }
 ```
 
-That is all the parent records. The subagent's own conversation, tool
-calls, and usage are elsewhere.
-
-## Where the subagent files live
-
-Claude Code stores subagent transcripts under the parent session's
-directory:
-
-```
-~/.claude/projects/<project>/
-  <session-id>.jsonl                     # the parent transcript
-  <session-id>/subagents/
-    agent-a69749826ce0a9ed8.jsonl        # one transcript per subagent
-    agent-a69749826ce0a9ed8.meta.json    # sidecar; discovery skips it with a reason
-```
-
-The `agent-<id>.jsonl` files are complete transcripts in the same
-format as the parent and parse identically.
-
-## Tying subagents to the parent
-
-Three joins, all mechanical:
-
-1. **The `agentId` key.** The parent's `Agent` tool result enrichment
-   carries `agentId`; it matches the subagent's filename
-   (`agent-<agentId>.jsonl`) and the `subagent_id` in the subagent's
-   own session meta. This joins a specific delegation to a specific
-   transcript.
-2. **Session meta.** A subagent transcript's `meta` shares the parent's
-   `session_id` and adds `subagent_id` plus `is_subagent: true`, so
-   grouping a mixed pile of converted sessions by task is a group-by on
-   `session_id`.
-3. **Discovery.** [Session discovery](/docs/discovery/) treats the
-   parent and its subagent files as one session: `sessions
-   --session-id` lists all of them, and the Go `Locate` ref carries
-   `SubagentPaths` alongside the parent `Path`. A subagent file whose
-   parent transcript is missing still surfaces as a standalone ref
-   rather than being dropped.
-
-```sh
-$ agentminutes sessions --harness claude-code --session-id 4d51ce48-0e3d-4321-82f5-435769bc5ab4
-~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4.jsonl
-~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a32569d82c684ca51.jsonl
-~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a69749826ce0a9ed8.jsonl
-~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a7578b0c629cb97e7.jsonl
-~/.claude/projects/my-project/4d51ce48-0e3d-4321-82f5-435769bc5ab4/subagents/agent-a9966d78dab862c6f.jsonl
-agentminutes: 1 session, 0 filtered out, 0 skipped files, 0 errors
-```
+On Claude Code a custom agent (defined with `--agents`) also puts
+`agentType`, `totalTokens`, `totalToolUseCount`, and `toolStats` in
+that sidecar, and on 2.1.274 a `SendMessage` call reaches a running
+agent or another session, whose reply arrives as a `user_message` with
+origin `harness` (natively an `isMeta` record with a peer `origin` and
+`handback: true`). The subagent's conversation and tool calls are still
+elsewhere.
 
 ## Reading a subagent transcript
 
-Everything on the [schema page](/docs/schema/) applies unchanged. One
-seat assignment deserves attention: the subagent's first
-`user_message` is the delegated prompt, and it carries
-`origin: "human"`, because inside that conversation the parent agent
-occupies the user seat. When "how many prompts did the human write"
-matters to your analysis, filter on `meta.is_subagent` first rather
-than trusting `origin` across a whole task's files:
+Everything on the [schema page](/docs/schema/) applies unchanged to a
+subagent transcript. One seat assignment deserves attention: on the
+harnesses that write separate files, the subagent's first
+`user_message` is the delegated prompt and carries `origin: "human"`,
+because inside that conversation the parent agent occupies the user
+seat. When "how many prompts did the human write" matters, filter on
+`meta.is_subagent` (or, at task scope, read `by_agent` and count only
+the parent's). Copilot CLI is the exception: its subagent prompts are
+inline and already carry origin `harness`.
 
-```sh
-agentminutes sessions --harness claude-code --session-id "$SESSION" |
-  while read -r t; do agentminutes convert "$t"; done |
-  jq -s 'map(select(.meta.is_subagent | not)
-      | [.events[] | select(.kind == "user_message"
-          and .user_message.origin == "human")] | length)
-    | add'
-```
+## How each harness records delegation
 
-On the four-subagent session used throughout this page, the filtered
-count is 13. Dropping the `is_subagent` filter reports 17: the four
-delegated prompts read as human-origin messages, one per subagent, and
-inflate the count by exactly the number of delegations.
+A task summary hides these differences; this is what it is hiding, so
+a `join` value or a surprising number can be traced.
 
-## Accounting for a whole task
+| | Claude Code | Codex | Antigravity | Copilot CLI |
+| --- | --- | --- | --- | --- |
+| Subagent conversation | its own file under `<session-id>/subagents/` | its own rollout file in the dated tree | a sibling conversation directory | inside the parent transcript |
+| Join | layout | `session_id` recorded in-band | conversation ids embedded in `invoke_subagent` results | `agent_id` on every event |
+| Subagent identity | `meta.subagent_id`, `is_subagent: true` | `meta.subagent_id`, `is_subagent: true`, `session_id` is the root's at every depth | none in-band; the conversation directory name | the `agent_id` (a fresh id, or the parent's tool call id for the search agent) |
+| Nesting | subagents cannot delegate | validated to depth 2 | followed by the same content join | `subagent.started` names the parent agent |
+| Usage at task scope | summed across files | summed across files | none recorded | none per message |
 
-Each transcript's `totals` cover only its own API context; parent
-totals exclude subagent usage entirely. In a real four-subagent
-session, the parent-only reading missed 37 percent of the task's
-prompt volume and half of its output tokens.
-[Comparing Token Counts](/docs/token-comparison/#subagent-usage-lives-in-separate-transcripts)
-works through that example and the aggregation recipe; the short
-version is one discovery call and a sum:
+Two Claude Code details worth knowing. Discovery treats the parent and
+its subagent files as one session: `sessions --session-id` lists all of
+them, and a subagent file whose parent transcript is missing still
+surfaces as a standalone ref rather than being dropped. And the
+`.meta.json` sidecars beside subagent transcripts are skipped with a
+counted reason.
 
-```sh
-agentminutes sessions --harness claude-code --session-id "$SESSION" |
-  while read -r t; do
-    agentminutes stats "$t" | jq '.totals.total_prompt_tokens // 0'
-  done | jq -s add
-```
+Two Codex details. Rollout filenames carry each thread's own id, so
+`sessions --harness codex --session-id <parent>` resolves the parent's
+file alone; `--include-subagents` and `Gather` do the sibling scan for
+you. The scan is by session id under the root, so a parent transcript
+copied elsewhere still gathers the root's siblings. Messages between agents appear as `agent_message` system events
+carrying author and recipient agent paths, and the harness telemetry
+(`SubAgentActivity` system events) names each spawned thread.
 
-The same scope decision applies to every other metric: tool-call
-counts, bytes retrieved, and wall time all read differently at
-conversation scope (parent only) and task scope (parent plus
-subagents). Decide which question you are asking before you aggregate.
+One Antigravity detail. Nothing structural marks a child conversation,
+so the join reads the child's conversation id out of the
+`invoke_subagent` result text; a child that is no longer in the store
+is skipped, and `join: "content"` is the signal to treat the grouping
+as a heuristic. The child reports back with a `send_message` call whose
+input names the parent conversation id as recipient.
 
-## Codex
+And Copilot CLI: a delegation's whole conversation follows the `task`
+or `search_code_subagent` call in the same stream, every event stamped
+with the subagent's `agent_id`, bracketed by `subagent.started` and
+`subagent.completed` system events (the latter carrying `totalTokens`
+for a `task` agent). Parallel agents interleave, a background agent's
+follow-up turns (`write_agent`) appear under the same `agent_id`
+without a new bracket, and a plain `stats` on the file already includes
+the subagent's tool calls and model, which is exactly what `by_agent`
+separates.
 
-Codex (0.154.0, multi-agent enabled by default) records each subagent
-as its **own rollout file** in the same dated tree as every other
-session. The identity design is friendly to analysis:
-
-- A subagent rollout's `session_id` is the **root thread's id at every
-  spawn depth** (validated to depth 2), so its converted
-  `meta.session_id` matches the parent's, and grouping a task is the
-  same `session_id` match as Claude Code. The subagent's own thread id
-  appears as `meta.subagent_id` with `is_subagent: true`, and its
-  position in the delegation tree is in the native `agent_path`
-  (`/root/relay/pong`).
-- In the parent, a delegation is a `spawn_agent` tool call (its
-  `message` argument is encrypted, like reasoning) paired with a
-  result, and the harness telemetry (`SubAgentActivity` system events)
-  names the spawned thread's id. Messages between agents appear as
-  `agent_message` system events carrying author and recipient agent
-  paths.
-- Each subagent rollout has its own `totals`, so the whole-task
-  aggregation recipe above works unchanged: discover by the parent's
-  session ID and sum. One discovery caveat: rollout filenames carry
-  each thread's own id, so `sessions --harness codex --session-id
-  <parent>` resolves only the parent's file directly; a scan
-  (`sessions --session-id <parent>` across roots, or `--root` with
-  time filters) is what gathers the whole task.
-
-## Antigravity
-
-Antigravity (1.2.2) spawns subagents as ordinary **sibling
-conversations** under its brain directory. The parent records an
-`invoke_subagent` tool call answered by a step whose content embeds
-the created child's conversation id and transcript path; the child's
-transcript looks exactly like a normal session (its first user input
-is the delegated prompt in the standard wrapper), and it reports back
-with a `send_message` tool call whose arguments name the parent
-conversation id as recipient.
-
-Nothing structural marks the child as a subagent, so `is_subagent`
-stays unset for antigravity, and tying files together is a content
-join on those embedded ids. Both directions of the join are
-extractable from converted events. Parent to children: the
-subagent-creation step pairs as the `invoke_subagent` call's tool
-result, and its text embeds each created child's conversation id:
-
-```sh
-agentminutes convert --format jsonl "$PARENT" |
-  jq -r 'select(.kind == "tool_result"
-      and .tool_result.tool_name == "invoke_subagent")
-    | .tool_result.content[0].text
-    | capture("\"conversationId\":\\s*\"(?<id>[0-9a-f-]+)\"").id' |
-  while read -r child; do
-    agentminutes sessions --harness antigravity --session-id "$child"
-  done
-```
-
-Child to parent: the `send_message` call's input names the parent
-conversation id as its recipient:
-
-```sh
-agentminutes convert --format jsonl "$CHILD" |
-  jq -r 'select(.kind == "tool_call"
-      and .tool_call.name == "send_message")
-    | .tool_call.input.Recipient'
-```
-
-Both recipes are verified against a real spawn: the first prints the
-child's conversation id and resolves it to its transcript path, and
-the second prints the parent's id from inside the child. Token
-accounting is unaffected either way: antigravity transcripts record
-no usage, so subagent or not, its sessions have no `totals`.
-
-## GitHub Copilot CLI
-
-Copilot CLI (1.0.88) records subagent conversations **inside the parent
-transcript** rather than in files of their own. A delegation is a
-`tool_call` named `task` (a general subagent whose prompt, name, and
-`agent_type` are in the input) or `search_code_subagent` (a read-only
-search agent on a dedicated model with a constrained toolset of
-`file_search`, `grep_search`, and `read_file`). What follows in the
-stream is the subagent's own conversation: its prompt as a
-`user_message` with origin `harness` (the parent agent wrote it, not
-the human), its `assistant_message`, `thinking`, `tool_call`, and
-`tool_result` events, and its turn boundaries, every one stamped with
-the subagent's `agent_id`. The parent's `tool_result` for the
-delegation carries the subagent's final text, and can land before or
-after the subagent's last events.
-
-`system` events bracket each subagent: `subagent.started` (the parent
-tool call id, agent name and type, resolved model), `subagent.configured`,
-`subagent.selected` (the search agent's tool list), and
-`subagent.completed`. For a `task` subagent, `subagent.completed` also
-records `totalToolCalls`, `totalTokens`, and `durationMs`, the only
-per-subagent usage the format carries. The join is `subagent.started`:
-its `agent_id` is the value on the subagent's events, and its
-`toolCallId` is the parent's `tool_call`.
-
-Delegation comes in more shapes than the sync case, all recorded the
-same way: two `task` calls in one message run as two agents whose
-records interleave (tool call ids keep the pairing straight); a
-background agent (`mode: "background"`) returns at once and is driven
-afterwards through `list_agents`, `read_agent`, and `write_agent`,
-whose follow-up turns appear under the same `agent_id` without a new
-lifecycle bracket; a `general-purpose` agent can delegate again, and
-the nested agent's `subagent.started` names its parent agent in
-`parentId`; and a custom agent from `.github/agents` runs as
-`agent_type: "<name>"` with a `subagent.selected` listing its tools.
-
-Two consequences for analysis:
-
-- **Parent-only numbers need an `agent_id` filter.** Unlike the other
-  harnesses, parsing the one transcript already includes the delegated
-  work: `stats` counts the subagent's tool calls in `tool_calls`, and
-  its model appears in `models`. Keep events whose `agent_id` is empty
-  for the parent's own behavior.
-- **Nothing to gather.** One session record covers the task, so the
-  discovery step the other harnesses need does not apply; `Meta`
-  never marks a Copilot transcript as a subagent's.
-
+Everything on this page was validated against live delegation probes on
+the versions in [Harness Support](/docs/harnesses/), and the drift
+probe's `subagent` task re-checks the join and the sums on every run.

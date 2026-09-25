@@ -54,6 +54,12 @@ func (u *TokenUsage) Add(v TokenUsage) {
 	u.CacheCreationInputTokens += v.CacheCreationInputTokens
 }
 
+// TotalPromptTokens returns the total prompt size for usage recorded by
+// the named harness under the provider's documented convention, the
+// number TokenUsage.TotalPromptTokens carries on session and task
+// totals. Exported for callers that sum usage themselves.
+func TotalPromptTokens(harness string, u *TokenUsage) int64 { return totalPromptTokens(harness, u) }
+
 // totalPromptTokens returns the total prompt size for usage recorded by
 // the named harness, normalizing the provider's documented convention
 // (see the TokenUsage field docs and the harness format inventories), or

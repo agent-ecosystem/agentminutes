@@ -1,12 +1,14 @@
 ---
-title: "Example: Comparing Two Harnesses"
-description: A worked example, from capture to a side-by-side of tool use, context, and cost.
+title: "Example: Comparing Harnesses"
+description: Worked examples, from capture to side-by-sides of tool use, context, cost, failures, and delegation across harnesses.
 icon: science
 weight: 850
 ---
 
-This page walks a real comparison end to end. The same task ran on Claude
-Code and Codex CLI:
+This page walks a real comparison end to end, then widens it. The first
+part follows one task on two harnesses in detail; the second puts all
+four supported harnesses side by side on three tasks. The same task ran
+on Claude Code and Codex CLI:
 
 > Create a file named hello.txt containing exactly the word hello, then
 > reply done.
@@ -162,6 +164,105 @@ The trimmed `stats` fields behind the interesting rows:
   `done`, and one harness took 2.5x the wall time and 3x the output
   tokens of the other on this tiny task. Which trade you prefer is your
   call; the transcripts are what make the trade visible.
+
+## Four harnesses, three tasks
+
+The same method scales sideways. The tables below come from one run of
+`agentminutes drift probe --force --keep`, the maintainer tool that
+drives every installed harness through a fixed task set and keeps the
+transcripts (Antigravity CLI 1.2.11 on Gemini 3.8 Flash, Claude Code
+2.1.274 on Claude Fable 5.1, Codex CLI 0.157.0 on GPT-6 Astra, GitHub
+Copilot CLI 1.0.88 on Claude Sonnet 5). Every number is `stats` output
+on those transcripts.
+
+### The file task again
+
+> Use your file-writing or patch tool to create a file named probe.txt
+> in the current working directory containing exactly this text: drift
+> probe. Do not use shell redirection or shell commands.
+
+| | Antigravity | Claude Code | Codex | Copilot |
+| --- | --- | --- | --- | --- |
+| Events | 8 | 29 | 24 | 18 |
+| Tool calls | 1 (`write_to_file`, `edit`) | 1 (`Write`, `edit`) | 1 (`exec`, `execute`) | 1 (`create`, `edit`) |
+| File edit visible as | tool call | tool call | `FileChange` telemetry | tool call |
+| Injected `system` events | 1 | 23 | 16 | 12 |
+| Harness-origin user messages | 0 | 0 | 1 | 0 |
+| `totals.total_prompt_tokens` | absent | 43,572 | 25,182 | absent |
+| Output tokens | absent | 195 | 168 | absent |
+| API calls | 2 | 2 | 2 | 2 |
+| Tool time | 4.0 s | 1.07 s | 87 ms | 6 ms |
+| Wall time | 4.0 s | 7.2 s | 9.8 s | 5.5 s |
+
+Three things the two-harness table could not show:
+
+- **Two harnesses record no per-message usage at all**, so their
+  `totals` are omitted rather than zero. Antigravity records nothing;
+  Copilot CLI records session-cumulative per-model totals in a
+  shutdown record, preserved as a `system` event. A cost column across
+  all four needs those two read differently, as
+  [Comparing Token Counts](/docs/token-comparison/) lays out.
+- **The Codex edit is still telemetry.** On 0.157.0 the edit surfaces
+  as an `item_completed` `FileChange` item rather than a
+  `patch_apply_end` event, and `--promote codex:patch-apply` still
+  recovers it as an `apply_patch` call of kind `edit`.
+- **Antigravity's tool time is whole seconds.** Its records carry
+  second-resolution timestamps, so a 4-second tool time on a
+  sub-second write says only that the write crossed a second boundary.
+
+### A task that fails
+
+> Do both of these with your tools and keep going after each one
+> fails: run the shell command cat drift-probe-missing.txt (the file
+> does not exist), then read the file
+> /tmp/drift-probe-absent/nothing.txt with your file-reading tool.
+> Then reply with exactly: done
+
+All four replied `done`. What they recorded on the way:
+
+| | Antigravity | Claude Code | Codex | Copilot |
+| --- | --- | --- | --- | --- |
+| Tool calls | 2 | 2 | 1 | 2 |
+| `tool_errors` | 2 | 2 | 1 | 2 |
+| Nonzero exit recorded as | "exited with code 1" in templated content, no error key | `is_error: true`, content `Exit code 1` plus stderr | success, with `exit_code: 1` in a JSON chunk of the output | `success: true` with `shellExecution.exitCode: 1` |
+| Absent file recorded as | an `error` key on the step | `is_error: true` | (folded into the same script) | `error.code: "failure"` |
+
+The `tool_errors` row agrees only because every adapter reads its
+harness's own convention: two of the four harnesses call a failed
+command a successful tool run. Codex reports one call because the
+model ran both reads in one exec script, so per-call error rates are
+not comparable either; count failed actions from the content when the
+harness batches. See the `is_error` note on the
+[schema page](/docs/schema/) for the fetch case, where the harnesses
+genuinely disagree.
+
+### A task that delegates
+
+> Delegate this to a subagent using your agent-spawning tool (do not do
+> it yourself): run the shell command echo drift-probe-subagent and
+> report its exact output. When the subagent reports back, reply with
+> exactly the output it reported.
+
+| | Antigravity | Claude Code | Codex | Copilot |
+| --- | --- | --- | --- | --- |
+| Delegation call | `invoke_subagent` | `Agent` | `spawn_agent` + `wait_agent` | `task` |
+| Parent transcript events | 10 | 29 | 31 | 32 |
+| Subagent's work lives in | a sibling conversation | `<session>/subagents/agent-*.jsonl` | a sibling rollout file | the same file, 16 of the 32 events stamped with its `agent_id` |
+| Subagent's own tool calls (in the parent) | 0 | 0 | 0 | 1 (`bash`) |
+| Parent `total_prompt_tokens` | absent | 43,732 | 37,914 | absent |
+| Subagent `total_prompt_tokens` | absent | 28,254 (its file) | 24,703 (its file) | absent |
+| Models observed in the parent | 1 | 1 | 1 | 2 (`claude-sonnet-5`, `gpt-5.6-luna`) |
+
+The same delegation produces three storage layouts, and a plain
+`stats` on the parent reads differently on each: for Claude Code and
+Codex it undercounts the task by a whole transcript (here about 40
+percent of the prompt tokens), and for Copilot it already includes the
+subagent's tool call and model. `stats --include-subagents` levels
+this: it gathers the subagent transcripts where they exist, reports
+the task aggregate (71,986 prompt tokens for Claude Code, 62,617 for
+Codex), and splits every task per agent, so the parent-only and
+task-scope numbers are both one field away on every harness.
+[Subagents](/docs/subagents/#task-summaries) walks the output.
 
 ## Scaling it up
 

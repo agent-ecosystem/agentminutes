@@ -8,6 +8,29 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ### Added
 
+- Task summaries. `stats --include-subagents` (library:
+  `agentminutes.Task`) treats a transcript as a task's parent, gathers
+  the subagent transcripts the harness wrote for it through the new
+  `harness.Locator.Gather` (Claude Code by layout, Codex by the
+  in-band root session id, Antigravity by the conversation ids in
+  `invoke_subagent` results, Copilot CLI inline), and reports each
+  transcript's summary, a task aggregate in the `Stats` shape
+  (`session.SumStats`, with `total_prompt_tokens` re-derived per
+  harness), and a per-agent split. `Stats` gains `by_agent` (schema
+  extension, additive): the split per agent id when a session's events
+  span more than one agent, the parent under the empty key. The
+  grouping is pinned three ways: locator fixtures per harness, an
+  env-gated corpus invariant that every subagent transcript discovery
+  finds is claimed by exactly one task, and the drift probe's subagent
+  task now asserting the join and that task totals equal the sum of
+  the transcripts' totals on fresh delegations. What a gather could not
+  include (an unreadable candidate rollout, a child conversation no
+  longer in the store) is listed in `skipped`, never dropped.
+  **For implementers of `harness.Locator` outside this module:** the
+  interface gained the `Gather` method, so external locators must add
+  it (returning the parent alone, with `harness.JoinInline`, is a valid
+  minimal implementation).
+
 - GitHub Copilot CLI support (`copilot`), validated against 1.0.88
   transcripts (`~/.copilot/session-state/<session-id>/events.jsonl`).
   `session.start` becomes `session_meta` (session id, Copilot version,

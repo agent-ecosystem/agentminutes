@@ -86,7 +86,12 @@ Docs that move with the code:
   mapping landed: the codex block is re-run output over the surviving
   source transcript (`~/.codex/sessions/2026/08/02/rollout-*-4eb8a22861a9.jsonl`);
   the claude-code source transcript is gone, so a future stats-shape
-  change there means re-capturing from a fresh run.
+  change there means re-capturing from a fresh run. The "Four
+  harnesses, three tasks" section is captured from one
+  `drift probe --force --keep` run (antigravity 1.2.11, claude-code
+  2.1.274, codex 0.157.0, copilot 1.0.88; the kept transcripts are not
+  retained), so it is re-captured by re-running the probe rather than
+  hand-edited.
 - `content/docs/discovery.md`: the resumed-turns walkthrough is a
   captured two-turn claude-code run; stable unless resume semantics
   change.

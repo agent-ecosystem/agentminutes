@@ -7,8 +7,10 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/agent-ecosystem/agentminutes/harness"
+	"github.com/agent-ecosystem/agentminutes/session"
 )
 
 // Transcript layout under the root (~/.gemini/antigravity-cli/brain): one
@@ -91,6 +93,96 @@ func (a Adapter) Locate(root, sessionID string) (harness.SessionRef, error) {
 	}
 	ref, _, err := a.ref(transcript, sessionID, harness.ScanOptions{})
 	return ref, err
+}
+
+// childIDRe matches the conversation ids an invoke_subagent result embeds
+// ("Created the following subagents:" followed by JSON with
+// conversationId). Nothing structural marks a child conversation, so this
+// content join is the only parent-to-child link the format offers.
+var childIDRe = regexp.MustCompile(`"conversationId":\s*"([^"]+)"`)
+
+// Gather implements harness.Locator. Children are found by parsing the
+// parent and reading the conversation ids out of its invoke_subagent
+// results, then located under root; each child is gathered in turn, so
+// nested delegation is followed. A child id that does not resolve under
+// root is reported in Task.Skipped: the join is content-derived and a
+// missing child is a fact about the store, not an error in the parent,
+// but the task summary is short by that child.
+func (a Adapter) Gather(root string, parent harness.SessionRef) (harness.Task, error) {
+	if parent.Meta.SessionID == "" {
+		// A bare BuildRef ref lacks the layout-derived conversation id
+		// (nothing is recorded in-band); derive it as Scan and Locate do.
+		parent.Meta.SessionID = conversationIDOf(parent.Path)
+	}
+	task := harness.Task{Parent: parent, Join: harness.JoinContent}
+	seen := map[string]bool{parent.Meta.SessionID: true}
+	var walk func(ref harness.SessionRef) error
+	walk = func(ref harness.SessionRef) error {
+		ids, err := childIDs(a, ref.Path)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			child, err := a.Locate(root, id)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					task.Skipped = append(task.Skipped, harness.TaskSkip{Path: id, Reason: "child conversation not found under root"})
+					continue
+				}
+				return err
+			}
+			task.Subagents = append(task.Subagents, child)
+			if err := walk(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := walk(parent); err != nil {
+		return harness.Task{}, err
+	}
+	return task, nil
+}
+
+// conversationIDOf returns the conversation directory name a transcript
+// path sits under (<root>/<conversation>/.system_generated/logs/...), or
+// "" when the path does not have that layout.
+func conversationIDOf(path string) string {
+	dir := filepath.Dir(path)
+	for range 2 {
+		dir = filepath.Dir(dir)
+	}
+	if rel, err := filepath.Rel(filepath.Dir(dir), path); err == nil && rel == filepath.Join(filepath.Base(dir), transcriptRel) {
+		return filepath.Base(dir)
+	}
+	return ""
+}
+
+// childIDs parses a transcript and returns the conversation ids named by
+// its invoke_subagent results, in order.
+func childIDs(a Adapter, path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, scanError(path, err)
+	}
+	defer f.Close() //nolint:errcheck // read-only
+	var ids []string
+	for ev, err := range a.Events(f, harness.Options{}) {
+		if err != nil {
+			return nil, scanError(path, err)
+		}
+		if ev.Kind != session.KindToolResult || ev.ToolResult.ToolName != "invoke_subagent" {
+			continue
+		}
+		for _, m := range childIDRe.FindAllStringSubmatch(ev.ToolResult.Text(), -1) {
+			ids = append(ids, m[1])
+		}
+	}
+	return ids, nil
 }
 
 func scanError(path string, err error) error {

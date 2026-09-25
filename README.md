@@ -63,6 +63,10 @@ agentminutes sessions --cwd ~/runs/exp-42 | xargs -n1 agentminutes convert
 # Summarize a session's behavior: tool mix, bytes retrieved,
 # latency, tokens, final answer:
 agentminutes stats session.jsonl
+
+# The same for a whole task, subagent transcripts gathered and
+# aggregated without double counting:
+agentminutes stats --include-subagents session.jsonl
 ```
 
 As a library:
@@ -96,8 +100,9 @@ Full documentation is available at
   validation coverage and format drift
 - [Design Notes](https://agentminutes.dev/docs/design/): loud failure,
   post-hoc parsing, streaming, the explicit registry
-- [Example: Comparing Two Harnesses](https://agentminutes.dev/docs/example-comparison/):
-  a worked comparison from capture to side-by-side
+- [Example: Comparing Harnesses](https://agentminutes.dev/docs/example-comparison/):
+  worked comparisons from capture to side-by-side, on two harnesses in
+  depth and all four on file, failure, and delegation tasks
 
 ## Contributing
 

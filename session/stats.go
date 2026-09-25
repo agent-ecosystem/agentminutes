@@ -75,6 +75,31 @@ type Stats struct {
 	// in stream order (assistant messages are causally ordered in-stream
 	// even when their timestamps are not; contrast StartTime/EndTime).
 	FinalAnswer string `json:"final_answer,omitempty" schema:"ext"`
+
+	// ByAgent splits the session per agent when it holds more than one:
+	// the parent under the empty key, each subagent under its agent id.
+	// Set when events carry Event.AgentID (a harness that records
+	// subagents inline) and by task-scope aggregation, where the keys are
+	// the subagent transcripts' ids. Absent for a single-agent session,
+	// whose top-level numbers are the whole story.
+	ByAgent map[string]*AgentStats `json:"by_agent,omitempty" schema:"ext"`
+}
+
+// AgentStats is one agent's share of a session or task: the per-agent
+// subset of Stats that is meaningful to split.
+type AgentStats struct {
+	Events            int `json:"events" schema:"ext"`
+	AssistantMessages int `json:"assistant_messages" schema:"ext"`
+
+	ToolCalls       int              `json:"tool_calls" schema:"ext"`
+	ToolCallsByName map[string]int   `json:"tool_calls_by_name,omitempty" schema:"ext"`
+	ToolCallsByKind map[ToolKind]int `json:"tool_calls_by_kind,omitempty" schema:"ext"`
+	ToolErrors      int              `json:"tool_errors,omitempty" schema:"ext"`
+
+	Models []string `json:"models,omitempty" schema:"otel"`
+
+	// Totals is the agent's own token usage, nil when it recorded none.
+	Totals *TokenUsage `json:"totals,omitempty" schema:"otel"`
 }
 
 // Stats computes the session's behavioral summary.
@@ -128,6 +153,39 @@ func (s *Session) Stats() *Stats {
 		st.WallTimeMS = st.EndTime.Sub(*st.StartTime).Milliseconds()
 	}
 
+	// Per-agent split, only when more than one agent wrote events.
+	agents := map[string]*AgentStats{}
+	agentOf := func(id string) *AgentStats {
+		a := agents[id]
+		if a == nil {
+			a = &AgentStats{ToolCallsByName: map[string]int{}, ToolCallsByKind: map[ToolKind]int{}}
+			agents[id] = a
+		}
+		return a
+	}
+	usageByAgent := map[string]*TokenUsage{}
+	for i := range s.Events {
+		ev := &s.Events[i]
+		a := agentOf(ev.AgentID)
+		a.Events++
+		if ev.Kind == KindAssistantMessage {
+			a.AssistantMessages++
+			if m := ev.AssistantMessage.Model; m != "" && !slices.Contains(a.Models, m) {
+				a.Models = append(a.Models, m)
+			}
+			if u := ev.AssistantMessage.Usage; u != nil {
+				if usageByAgent[ev.AgentID] == nil {
+					usageByAgent[ev.AgentID] = &TokenUsage{}
+				}
+				usageByAgent[ev.AgentID].Add(*u)
+			}
+		}
+	}
+	for id, u := range usageByAgent {
+		u.TotalPromptTokens = TotalPromptTokens(s.Meta.Harness, u)
+		agents[id].Totals = u
+	}
+
 	for _, ti := range s.ToolInteractions() {
 		name := UnknownToolName
 		if ti.Call != nil {
@@ -136,6 +194,10 @@ func (s *Session) Stats() *Stats {
 			st.ToolCalls++
 			st.ToolCallsByName[call.Name]++
 			st.ToolCallsByKind[call.Kind]++
+			a := agentOf(ti.Call.AgentID)
+			a.ToolCalls++
+			a.ToolCallsByName[call.Name]++
+			a.ToolCallsByKind[call.Kind]++
 			if len(ti.Results) == 0 {
 				st.UnansweredCalls++
 			}
@@ -151,6 +213,11 @@ func (s *Session) Stats() *Stats {
 			tr := rev.ToolResult
 			if tr.IsError {
 				st.ToolErrors++
+				owner := rev.AgentID
+				if ti.Call != nil {
+					owner = ti.Call.AgentID
+				}
+				agentOf(owner).ToolErrors++
 			}
 			b := resultBytes(tr.Content)
 			st.ResultBytes += b
@@ -168,7 +235,148 @@ func (s *Session) Stats() *Stats {
 			}
 		}
 	}
+	if len(agents) > 1 {
+		st.ByAgent = agents
+	}
 	return st
+}
+
+// AsAgent returns the whole session's numbers as one agent's share, for
+// task-scope aggregation where each subagent transcript is one agent.
+func (st *Stats) AsAgent() *AgentStats {
+	a := &AgentStats{
+		Events:            st.Events,
+		AssistantMessages: st.EventCounts[KindAssistantMessage],
+		ToolCalls:         st.ToolCalls,
+		ToolCallsByName:   cloneMap(st.ToolCallsByName),
+		ToolCallsByKind:   cloneMap(st.ToolCallsByKind),
+		ToolErrors:        st.ToolErrors,
+		Models:            slices.Clone(st.Models),
+	}
+	if st.Totals != nil {
+		t := *st.Totals
+		a.Totals = &t
+	}
+	return a
+}
+
+// SumStats aggregates the per-transcript summaries of one task (the
+// parent and its subagent transcripts, all from the same harness) into a
+// task-scope Stats: counts and per-name maps sum, models union in first-
+// observed order, Totals sum when any part recorded usage (with
+// TotalPromptTokens re-derived for the harness's convention, so a sum
+// never mixes conventions), the time span covers every part, and
+// FinalAnswer is the first part's (the parent's). ByAgent is left to the
+// caller, which knows the parts' identities. Nothing is counted twice:
+// each part's numbers come from its own transcript, and a harness whose
+// parent already includes its subagents' events (Copilot) contributes a
+// single part.
+func SumStats(harness string, parts ...*Stats) *Stats {
+	out := &Stats{
+		EventCounts:       map[EventKind]int{},
+		ToolCallsByName:   map[string]int{},
+		ToolCallsByKind:   map[ToolKind]int{},
+		ResultBytesByName: map[string]int64{},
+		ToolTimeMSByName:  map[string]int64{},
+		SystemBySubtype:   map[string]int{},
+	}
+	var totals *TokenUsage
+	for _, p := range parts {
+		if p == nil {
+			continue
+		}
+		out.Events += p.Events
+		addMap(out.EventCounts, p.EventCounts)
+		out.UserMessages += p.UserMessages
+		out.HarnessMessages += p.HarnessMessages
+		out.ToolCalls += p.ToolCalls
+		addMap(out.ToolCallsByName, p.ToolCallsByName)
+		addMap(out.ToolCallsByKind, p.ToolCallsByKind)
+		out.ToolErrors += p.ToolErrors
+		out.UnansweredCalls += p.UnansweredCalls
+		out.OrphanResults += p.OrphanResults
+		out.ResultBytes += p.ResultBytes
+		addMap(out.ResultBytesByName, p.ResultBytesByName)
+		out.FetchRawBytes += p.FetchRawBytes
+		addMap(out.ToolTimeMSByName, p.ToolTimeMSByName)
+		addMap(out.SystemBySubtype, p.SystemBySubtype)
+		for _, m := range p.Models {
+			if !slices.Contains(out.Models, m) {
+				out.Models = append(out.Models, m)
+			}
+		}
+		if p.Totals != nil {
+			if totals == nil {
+				totals = &TokenUsage{}
+			}
+			totals.Add(*p.Totals)
+		}
+		if p.StartTime != nil && (out.StartTime == nil || p.StartTime.Before(*out.StartTime)) {
+			t := *p.StartTime
+			out.StartTime = &t
+		}
+		if p.EndTime != nil && (out.EndTime == nil || p.EndTime.After(*out.EndTime)) {
+			t := *p.EndTime
+			out.EndTime = &t
+		}
+	}
+	if len(parts) > 0 && parts[0] != nil {
+		out.FinalAnswer = parts[0].FinalAnswer
+	}
+	if totals != nil {
+		totals.TotalPromptTokens = totalPromptTokens(harness, totals)
+		out.Totals = totals
+	}
+	if out.StartTime != nil && out.EndTime != nil {
+		out.WallTimeMS = out.EndTime.Sub(*out.StartTime).Milliseconds()
+	}
+	return out
+}
+
+// Add accumulates v's share into a (task-scope merge of one agent that
+// appears in several parts). Totals sum without re-deriving
+// TotalPromptTokens; callers re-derive with TotalPromptTokens.
+func (a *AgentStats) Add(v *AgentStats) {
+	a.Events += v.Events
+	a.AssistantMessages += v.AssistantMessages
+	a.ToolCalls += v.ToolCalls
+	if a.ToolCallsByName == nil {
+		a.ToolCallsByName = map[string]int{}
+	}
+	if a.ToolCallsByKind == nil {
+		a.ToolCallsByKind = map[ToolKind]int{}
+	}
+	addMap(a.ToolCallsByName, v.ToolCallsByName)
+	addMap(a.ToolCallsByKind, v.ToolCallsByKind)
+	a.ToolErrors += v.ToolErrors
+	for _, m := range v.Models {
+		if !slices.Contains(a.Models, m) {
+			a.Models = append(a.Models, m)
+		}
+	}
+	if v.Totals != nil {
+		if a.Totals == nil {
+			a.Totals = &TokenUsage{}
+		}
+		a.Totals.Add(*v.Totals)
+	}
+}
+
+func addMap[K comparable, V int | int64](dst, src map[K]V) {
+	for k, v := range src {
+		dst[k] += v
+	}
+}
+
+func cloneMap[K comparable, V any](m map[K]V) map[K]V {
+	if m == nil {
+		return nil
+	}
+	out := make(map[K]V, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }
 
 // resultBytes measures result content as delivered to the model: truncated

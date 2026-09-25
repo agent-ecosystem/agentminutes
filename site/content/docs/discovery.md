@@ -68,10 +68,12 @@ their filenames carry each thread's own id while the in-band
 scan groups a task by `session_id` (the filter also matches a
 subagent's own thread id), while `Locate` resolves exactly one thread's
 file, so `--harness codex --session-id <parent>` returns the parent
-alone and a scan is what gathers the whole task. Antigravity subagent
-conversations are structurally ordinary sessions; nothing in the
-layout or transcript marks them, so discovery cannot group them
-(the linkage is embedded in step content). For how the files tie back
+alone. Antigravity subagent conversations are structurally ordinary
+sessions; nothing in the layout or transcript marks them, and the
+linkage is embedded in step content. Gathering a whole task on either
+harness is `Locator.Gather` (what `stats --include-subagents` uses),
+which does the sibling scan for Codex and the content join for
+Antigravity. For how the files tie back
 to the parent on each harness and how to analyze a whole task, see
 [Subagents](/docs/subagents/).
 

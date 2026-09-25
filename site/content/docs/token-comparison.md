@@ -150,7 +150,9 @@ writes each subagent thread as a sibling rollout file. The parent
 transcript records the delegation calls and the text the subagents
 returned; the tokens the subagents consumed appear only in the
 subagent files. A session's `totals` therefore cover that one
-transcript's API context alone.
+transcript's API context alone. (One exception: a Claude Code custom
+agent's result sidecar carries the subagent's `totalTokens`, so the
+parent records that one number without the files.)
 
 The scale of the undercount is easy to underestimate. In a real
 four-subagent session:
@@ -164,29 +166,24 @@ four-subagent session:
 Reading only the parent file undercounts the task's prompt volume by 37
 percent and misses half of its output tokens.
 
-The schema makes the aggregation mechanical rather than forensic: a
-subagent transcript's meta shares the parent's `session_id` and adds
-`subagent_id` and `is_subagent: true`, and
-[discovery](/docs/discovery/) treats the parent and its subagent files
-as one session, so a single `sessions --session-id` call lists every
-transcript the task touched:
+The aggregation is built in: `stats --include-subagents` gathers every
+transcript the task touched and reports the task's `totals` alongside
+each transcript's own, with `total_prompt_tokens` re-derived for the
+harness's convention so the sum is as comparable as a single summary.
+The whole-task row above is that number, read from a task summary.
 
 ```sh
-agentminutes sessions --harness claude-code --session-id "$SESSION" |
-  while read -r t; do
-    agentminutes stats "$t" | jq '.totals.total_prompt_tokens // 0'
-  done | jq -s add
+agentminutes stats --include-subagents "$PARENT" | jq '.task.totals'
 ```
 
 Two caveats. First, decide which scope your metric wants before
-comparing: "what did this conversation cost" (parent only) and "what
-did this task cost" (parent plus subagents) are both legitimate
-questions with answers that differ by large factors. Second, the
-harnesses group differently: Claude Code and Codex both record the
-parent's session id in every subagent transcript, so the recipe above
-works for both (for Codex, gather with a scan rather than
-`--harness codex --session-id`; see [Subagents](/docs/subagents/)),
-while Antigravity records no usage at all, subagent or not.
+comparing: "what did this conversation cost" (the parent's entry in
+`transcripts`) and "what did this task cost" (`task`) are both
+legitimate questions with answers that differ by large factors.
+Second, absence is preserved: Antigravity records no usage at all and
+Copilot CLI none per message, so their task-scope `totals` are omitted
+too. [Subagents](/docs/subagents/#task-summaries) covers the
+output and what each harness records underneath.
 
 ## Recipes
 

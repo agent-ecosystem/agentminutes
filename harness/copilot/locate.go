@@ -113,6 +113,14 @@ func (a Adapter) Locate(root, sessionID string) (harness.SessionRef, error) {
 	return ref, nil
 }
 
+// Gather implements harness.Locator. Copilot writes a subagent's
+// conversation into the parent transcript (every record stamped with an
+// agentId), so there are no subagent files: the task is the parent alone,
+// and the per-agent split is Event.AgentID.
+func (Adapter) Gather(_ string, parent harness.SessionRef) (harness.Task, error) {
+	return harness.Task{Parent: parent, Join: harness.JoinInline}, nil
+}
+
 func scanError(path string, err error) error {
 	return &harness.ScanError{Harness: harness.Copilot, Path: path, Err: err}
 }

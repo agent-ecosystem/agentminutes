@@ -227,3 +227,23 @@ func TestToolsFixture(t *testing.T) {
 		t.Errorf("thinking = %+v", thinking)
 	}
 }
+
+// TestSubagentsByAgentStats pins the inline per-agent split on the
+// fixture: stats splits the parent from each subagent by agent id, with
+// the parent's own tool calls under the empty key and no usage anywhere.
+func TestSubagentsByAgentStats(t *testing.T) {
+	s, _, _ := parseNamed(t, "subagents.jsonl", harness.Options{})
+	st := s.Stats()
+	if len(st.ByAgent) != 3 {
+		t.Fatalf("ByAgent keys = %d, want 3", len(st.ByAgent))
+	}
+	if p := st.ByAgent[""]; p.ToolCalls != 2 || p.ToolCallsByName["task"] != 1 || p.ToolCallsByName["search_code_subagent"] != 1 || p.AssistantMessages != 3 || p.Totals != nil {
+		t.Errorf("parent = %+v", p)
+	}
+	if a := st.ByAgent["agent-a"]; a.ToolCalls != 1 || a.ToolCallsByName["bash"] != 1 || a.Models[0] != "gpt-5.6-luna" {
+		t.Errorf("task agent = %+v", a)
+	}
+	if a := st.ByAgent["call-search"]; a.ToolCalls != 3 || a.Models[0] != "copilot-search-a" {
+		t.Errorf("search agent = %+v", a)
+	}
+}

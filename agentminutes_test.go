@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -188,6 +190,105 @@ func TestScanHomelessYieldsScanErrors(t *testing.T) {
 		var scanErr *harness.ScanError
 		if !errors.As(err, &scanErr) {
 			t.Errorf("error is %T, want *harness.ScanError: %v", err, err)
+		}
+	}
+}
+
+// TestTask pins task-scope accounting on a synthetic Claude Code layout:
+// the parent and its two subagent transcripts are summarized separately
+// and as one aggregate whose totals are the exact sum (no transcript
+// counted twice, the parent's own numbers unchanged), with a per-agent
+// split keyed by subagent id.
+func TestTask(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "-tmp-exp")
+	rec := func(sessionID, uuid, parent, ts string, sidechain bool, agentID, kind, body string) string {
+		side := "false"
+		if sidechain {
+			side = "true"
+		}
+		agent := ""
+		if agentID != "" {
+			agent = `"agentId":"` + agentID + `",`
+		}
+		return `{"parentUuid":` + parent + `,"isSidechain":` + side + `,` + agent + `"type":"` + kind + `","message":` + body + `,"uuid":"` + uuid + `","timestamp":"` + ts + `","userType":"external","entrypoint":"cli","cwd":"/tmp/exp","sessionId":"` + sessionID + `","version":"2.1.274","gitBranch":"main"}` + "\n"
+	}
+	assistant := func(model string, in, out int, text string) string {
+		return `{"id":"m-` + text + `","model":"` + model + `","role":"assistant","type":"message","stop_reason":"end_turn","content":[{"type":"text","text":"` + text + `"}],"usage":{"input_tokens":` + itoa(in) + `,"output_tokens":` + itoa(out) + `,"cache_read_input_tokens":100,"cache_creation_input_tokens":10}}`
+	}
+	parent := rec("p-1", "u-1", "null", "2026-09-25T10:00:00.000Z", false, "", "user", `{"role":"user","content":"delegate"}`) +
+		rec("p-1", "a-1", `"u-1"`, "2026-09-25T10:00:05.000Z", false, "", "assistant", assistant("m-parent", 4, 20, "parent-done"))
+	child := func(id, text string, in, out int) string {
+		return rec("p-1", "u-"+id, "null", "2026-09-25T10:00:01.000Z", true, id, "user", `{"role":"user","content":"child task"}`) +
+			rec("p-1", "a-"+id, `"u-`+id+`"`, "2026-09-25T10:00:03.000Z", true, id, "assistant", assistant("m-child", in, out, text))
+	}
+	mustWrite(t, filepath.Join(proj, "p-1.jsonl"), parent)
+	mustWrite(t, filepath.Join(proj, "p-1", "subagents", "agent-c1.jsonl"), child("c1", "child-one", 7, 30))
+	mustWrite(t, filepath.Join(proj, "p-1", "subagents", "agent-c2.jsonl"), child("c2", "child-two", 9, 40))
+
+	ts, err := agentminutes.Task(harness.ClaudeCode, root, filepath.Join(proj, "p-1.jsonl"), harness.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ts.Harness != "claude-code" || ts.SessionID != "p-1" || ts.Join != harness.JoinLayout || len(ts.Transcripts) != 3 {
+		t.Fatalf("task = harness %q session %q join %q transcripts %d", ts.Harness, ts.SessionID, ts.Join, len(ts.Transcripts))
+	}
+	p := ts.Transcripts[0]
+	if p.IsSubagent || p.Stats.Totals.InputTokens != 4 || p.Stats.FinalAnswer != "parent-done" {
+		t.Errorf("parent transcript = %+v", p)
+	}
+	if ts.Transcripts[1].SubagentID != "c1" || !ts.Transcripts[1].IsSubagent || ts.Transcripts[2].SubagentID != "c2" {
+		t.Errorf("subagent transcripts = %+v", ts.Transcripts[1:])
+	}
+	// Aggregate: exact sums, Anthropic convention re-derived, parent's answer.
+	tot := ts.Task.Totals
+	if tot == nil || tot.InputTokens != 4+7+9 || tot.OutputTokens != 20+30+40 || tot.CacheReadInputTokens != 300 || tot.TotalPromptTokens != 20+300+30 {
+		t.Errorf("task totals = %+v", tot)
+	}
+	if ts.Task.FinalAnswer != "parent-done" || ts.Task.Events != 9 || ts.Task.EventCounts[session.KindAssistantMessage] != 3 {
+		t.Errorf("task stats = final %q events %d", ts.Task.FinalAnswer, ts.Task.Events)
+	}
+	if got := ts.Task.Models; len(got) != 2 || got[0] != "m-parent" || got[1] != "m-child" {
+		t.Errorf("task models = %v", got)
+	}
+	if len(ts.Task.ByAgent) != 3 || ts.Task.ByAgent[""].Totals.InputTokens != 4 || ts.Task.ByAgent["c1"].Totals.OutputTokens != 30 || ts.Task.ByAgent["c2"].Totals.TotalPromptTokens != 9+100+10 {
+		t.Errorf("by_agent = %+v", ts.Task.ByAgent)
+	}
+	// The sum property holds against the per-transcript summaries.
+	var in int64
+	for _, tr := range ts.Transcripts {
+		in += tr.Stats.Totals.InputTokens
+	}
+	if in != tot.InputTokens {
+		t.Errorf("sum of parts %d != task %d", in, tot.InputTokens)
+	}
+}
+
+func itoa(n int) string { return strconv.Itoa(n) }
+
+func mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestTaskStatsFieldProvenance keeps the task summary under the same
+// schema-tag discipline as the session types: every exported field of the
+// facade's output structs declares its provenance.
+func TestTaskStatsFieldProvenance(t *testing.T) {
+	for _, root := range []any{agentminutes.TaskStats{}, agentminutes.TranscriptStats{}} {
+		rt := reflect.TypeOf(root)
+		for i := 0; i < rt.NumField(); i++ {
+			f := rt.Field(i)
+			switch f.Tag.Get("schema") {
+			case "acp", "otel", "ext":
+			default:
+				t.Errorf("%s.%s has no schema tag", rt.Name(), f.Name)
+			}
 		}
 	}
 }

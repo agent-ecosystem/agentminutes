@@ -253,3 +253,66 @@ func TestConvertBadFormatPreservesOutputFile(t *testing.T) {
 		t.Errorf("output file = %q, want untouched content", data)
 	}
 }
+
+// TestStatsIncludeSubagents pins the task-scope output shape: the parent
+// and its subagent transcripts summarized separately, an aggregate, the
+// join, and a per-agent split; stdin is refused.
+func TestStatsIncludeSubagents(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "-tmp-exp")
+	data, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(proj, "s-fixture.jsonl")
+	if err := os.MkdirAll(filepath.Join(proj, "s-fixture", "subagents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(parent, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	child := `{"parentUuid":null,"isSidechain":true,"agentId":"c1","type":"user","message":{"role":"user","content":"child task"},"uuid":"cu-1","timestamp":"2026-07-19T10:00:01.000Z","userType":"external","entrypoint":"cli","cwd":"/tmp/exp","sessionId":"s-fixture","version":"2.1.274","gitBranch":"main"}` + "\n" +
+		`{"parentUuid":"cu-1","isSidechain":true,"agentId":"c1","type":"assistant","message":{"id":"cm-1","model":"claude-sonnet-5","role":"assistant","type":"message","stop_reason":"end_turn","content":[{"type":"text","text":"child done"}],"usage":{"input_tokens":3,"output_tokens":9,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}},"uuid":"ca-1","timestamp":"2026-07-19T10:00:02.000Z","userType":"external","entrypoint":"cli","cwd":"/tmp/exp","sessionId":"s-fixture","version":"2.1.274","gitBranch":"main"}` + "\n"
+	if err := os.WriteFile(filepath.Join(proj, "s-fixture", "subagents", "agent-c1.jsonl"), []byte(child), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, _, err := run(t, "stats", "--include-subagents", "--root", root, parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ts struct {
+		Harness     string `json:"harness"`
+		Join        string `json:"join"`
+		Transcripts []struct {
+			IsSubagent bool   `json:"is_subagent"`
+			SubagentID string `json:"subagent_id"`
+			Stats      struct {
+				Totals struct {
+					OutputTokens int64 `json:"output_tokens"`
+				} `json:"totals"`
+			} `json:"stats"`
+		} `json:"transcripts"`
+		Task struct {
+			Totals struct {
+				OutputTokens int64 `json:"output_tokens"`
+			} `json:"totals"`
+			ByAgent map[string]json.RawMessage `json:"by_agent"`
+		} `json:"task"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &ts); err != nil {
+		t.Fatalf("output is not JSON: %v\n%s", err, stdout)
+	}
+	if ts.Harness != "claude-code" || ts.Join != "layout" || len(ts.Transcripts) != 2 || !ts.Transcripts[1].IsSubagent || ts.Transcripts[1].SubagentID != "c1" {
+		t.Errorf("task = %+v", ts)
+	}
+	if ts.Task.Totals.OutputTokens != ts.Transcripts[0].Stats.Totals.OutputTokens+ts.Transcripts[1].Stats.Totals.OutputTokens {
+		t.Errorf("task output tokens %d != parts", ts.Task.Totals.OutputTokens)
+	}
+	if len(ts.Task.ByAgent) != 2 {
+		t.Errorf("by_agent keys = %d, want parent and c1", len(ts.Task.ByAgent))
+	}
+	if _, _, err := run(t, "stats", "--include-subagents", "-"); err == nil {
+		t.Error("stdin with --include-subagents: want error")
+	}
+}

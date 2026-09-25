@@ -148,6 +148,22 @@ type Probe struct {
 	// parsed sessions (a probe run can write more than one transcript,
 	// e.g. subagents; shapes may appear in any of them).
 	Missing func(sessions []*session.Session) []string
+
+	// Check, when set, runs after Missing passes with the fresh
+	// transcripts' paths and the harness's discovery, for assertions
+	// that need the files rather than the events: the subagent probe
+	// uses it to pin the task join and its accounting. Its findings are
+	// reported like missing shapes (retry once, then inconclusive).
+	Check func(ctx CheckContext) []string
+}
+
+// CheckContext is what a Probe.Check sees: the fresh transcripts a probe
+// run produced and the harness's discovery over its transcript root.
+type CheckContext struct {
+	Harness harness.ID
+	Locator harness.Locator
+	Root    string
+	Files   []string
 }
 
 // appliesTo reports whether the probe runs for the given harness.
@@ -245,6 +261,7 @@ func DefaultProbes() []Probe {
 			Prompt:    subagentPrompt,
 			Retry:     subagentRetry,
 			Missing:   missingNamedTools("invoke_subagent"),
+			Check:     checkTaskJoin,
 		},
 		{
 			Name:      "subagent",
@@ -252,6 +269,7 @@ func DefaultProbes() []Probe {
 			Prompt:    subagentPrompt,
 			Retry:     subagentRetry,
 			Missing:   missingNamedTools("Agent"),
+			Check:     checkTaskJoin,
 		},
 		{
 			Name:      "subagent",
@@ -259,6 +277,7 @@ func DefaultProbes() []Probe {
 			Prompt:    subagentPrompt,
 			Retry:     subagentRetry,
 			Missing:   missingNamedTools("spawn_agent"),
+			Check:     checkTaskJoin,
 		},
 		{
 			Name:      "subagent",
@@ -266,6 +285,7 @@ func DefaultProbes() []Probe {
 			Prompt:    subagentPrompt,
 			Retry:     subagentRetry,
 			Missing:   missingNamedTools("task"),
+			Check:     checkTaskJoin,
 		},
 	}
 }
@@ -274,6 +294,60 @@ const (
 	subagentPrompt = "Delegate this to a subagent using your agent-spawning tool (do not do it yourself): run the shell command `echo drift-probe-subagent` and report its exact output. When the subagent reports back, reply with exactly the output it reported."
 	subagentRetry  = "You must actually spawn a subagent with your delegation tool, not run the command yourself. Delegate: run `echo drift-probe-subagent` and report the output. Then reply with exactly what the subagent reported."
 )
+
+// checkTaskJoin pins the whole-task accounting on a fresh delegation:
+// gathering the parent transcript through the harness's Locator must find
+// the subagent's work (a subagent transcript for harnesses that write one,
+// a second agent id for an inline harness), and the task aggregate must
+// equal the sum of its transcripts, so a change in where a harness puts
+// its subagents, or in how a transcript's numbers add up, is loud here.
+func checkTaskJoin(ctx CheckContext) []string {
+	a, err := agentminutes.AdapterFor(ctx.Harness)
+	if err != nil {
+		return []string{err.Error()}
+	}
+	var parents []string
+	for _, f := range ctx.Files {
+		meta, _, err := harness.ReadIdentity(a, f)
+		if err != nil || meta.IsSubagent {
+			continue
+		}
+		parents = append(parents, f)
+	}
+	if len(parents) == 0 {
+		return []string{"a parent transcript to gather from"}
+	}
+	var findings []string
+	for _, p := range parents {
+		ts, err := agentminutes.Task(ctx.Harness, ctx.Root, p, harness.Options{})
+		if err != nil {
+			findings = append(findings, fmt.Sprintf("task gather of %s: %v", p, err))
+			continue
+		}
+		if ts.Join == harness.JoinInline {
+			if len(ts.Task.ByAgent) < 2 {
+				findings = append(findings, "an inline subagent (a second agent id in by_agent)")
+			}
+		} else if len(ts.Transcripts) < 2 {
+			findings = append(findings, fmt.Sprintf("a subagent transcript gathered by the %s join", ts.Join))
+		}
+		// The sum property: task totals are exactly the parts' totals.
+		var sum session.TokenUsage
+		var seen bool
+		for _, tr := range ts.Transcripts {
+			if tr.Stats.Totals != nil {
+				seen = true
+				sum.Add(*tr.Stats.Totals)
+			}
+		}
+		if seen != (ts.Task.Totals != nil) ||
+			(seen && (sum.InputTokens != ts.Task.Totals.InputTokens || sum.OutputTokens != ts.Task.Totals.OutputTokens ||
+				sum.CacheReadInputTokens != ts.Task.Totals.CacheReadInputTokens || sum.CacheCreationInputTokens != ts.Task.Totals.CacheCreationInputTokens)) {
+			findings = append(findings, "task totals equal to the sum of the transcripts' totals")
+		}
+	}
+	return findings
+}
 
 // missingToolError requires at least one tool_result flagged as an error.
 func missingToolError(sessions []*session.Session) []string {
@@ -515,25 +589,35 @@ func runOneProbe(w io.Writer, r *Runner, p *Probe, opts ProbeOptions, root, work
 		return ExecError
 	}
 	inv := Invocation{Prompt: p.Prompt, AllowedTools: p.AllowedTools, ExtraArgs: p.ExtraArgs}
-	sessions, cat := invokeAndParse(w, r, p.Name, inv, opts, root, workdir, keepDir, builder, claimed)
+	sessions, files, cat := invokeAndParse(w, r, p.Name, inv, opts, root, workdir, keepDir, builder, claimed)
 	if cat == ExecError {
 		return ExecError
 	}
-	if missing := p.Missing(sessions); len(missing) > 0 {
+	if missing := p.missing(sessions, files, r, root); len(missing) > 0 {
 		say(w, "  probe %s: expected shapes missing (%s); retrying once\n", p.Name, strings.Join(missing, "; "))
 		inv.Prompt = p.Retry
-		retrySessions, retryCat := invokeAndParse(w, r, p.Name+"-retry", inv, opts, root, workdir, keepDir, builder, claimed)
+		retrySessions, retryFiles, retryCat := invokeAndParse(w, r, p.Name+"-retry", inv, opts, root, workdir, keepDir, builder, claimed)
 		cat = maxCategory(cat, retryCat)
 		if retryCat != ExecError {
 			sessions = append(sessions, retrySessions...)
+			files = append(files, retryFiles...)
 		}
-		if missing := p.Missing(sessions); len(missing) > 0 {
+		if missing := p.missing(sessions, files, r, root); len(missing) > 0 {
 			say(w, "  probe %s: inconclusive, still missing: %s\n", p.Name, strings.Join(missing, "; "))
 			return maxCategory(cat, Inconclusive)
 		}
 	}
 	say(w, "  probe %s: shapes exercised and parsed\n", p.Name)
 	return cat
+}
+
+// missing runs the probe's shape assertion and, when it passes, its file-
+// level Check.
+func (p *Probe) missing(sessions []*session.Session, files []string, r *Runner, root string) []string {
+	if m := p.Missing(sessions); len(m) > 0 || p.Check == nil {
+		return m
+	}
+	return p.Check(CheckContext{Harness: r.ID, Locator: r.Locator, Root: root, Files: files})
 }
 
 // seedFiles writes a probe's fixture files into the workdir.
@@ -550,14 +634,17 @@ func seedFiles(workdir string, files map[string]string) error {
 	return nil
 }
 
-func invokeAndParse(w io.Writer, r *Runner, name string, inv Invocation, opts ProbeOptions, root, workdir, keepDir string, builder *vocabBuilder, claimed map[string]bool) ([]*session.Session, Category) {
+// invokeAndParse runs one invocation and returns the parsed sessions, the
+// fresh transcript paths they came from (vetoed foreign transcripts
+// excluded), and the category.
+func invokeAndParse(w io.Writer, r *Runner, name string, inv Invocation, opts ProbeOptions, root, workdir, keepDir string, builder *vocabBuilder, claimed map[string]bool) ([]*session.Session, []string, Category) {
 	start := time.Now().Add(-mtimeSlack)
 	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
 	defer cancel()
 	out, err := r.Invoke(ctx, workdir, inv)
 	if err != nil {
 		say(w, "  probe %s: error: harness invocation failed: %v\n%s", name, err, indent(tail(out), "    "))
-		return nil, ExecError
+		return nil, nil, ExecError
 	}
 	// The mtime window has slack, so it can re-capture a transcript from a
 	// probe that finished moments earlier; each file belongs to the first
@@ -571,21 +658,22 @@ func invokeAndParse(w io.Writer, r *Runner, name string, inv Invocation, opts Pr
 	}
 	if len(files) == 0 {
 		say(w, "  probe %s: error: no new transcript under %s\n", name, root)
-		return nil, ExecError
+		return nil, nil, ExecError
 	}
 
 	adapter, err := agentminutes.AdapterFor(r.ID)
 	if err != nil {
 		say(w, "  probe %s: error: %v\n", name, err)
-		return nil, ExecError
+		return nil, nil, ExecError
 	}
 	cat := Clean
 	var sessions []*session.Session
+	var kept []string
 	for _, f := range files {
 		data, err := os.ReadFile(f)
 		if err != nil {
 			say(w, "  probe %s: error: %v\n", name, err)
-			return nil, ExecError
+			return nil, nil, ExecError
 		}
 		// The mtime window also sweeps in transcripts that other sessions
 		// on this machine happen to write during the probe (e.g. an
@@ -618,13 +706,14 @@ func invokeAndParse(w io.Writer, r *Runner, name string, inv Invocation, opts Pr
 		cat = maxCategory(cat, fileCat)
 		if s != nil {
 			sessions = append(sessions, s)
+			kept = append(kept, f)
 		}
 		if err := builder.addTranscript(data); err != nil {
 			say(w, "  probe %s: vocabulary extraction stopped on %s: %v\n", name, f, err)
 			cat = maxCategory(cat, Drift)
 		}
 	}
-	return sessions, cat
+	return sessions, kept, cat
 }
 
 // checkAccounting runs the strict-parse and per-line-accounting checks

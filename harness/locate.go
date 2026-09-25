@@ -43,7 +43,65 @@ type Locator interface {
 	// by an identity read. The error wraps os.ErrNotExist when no
 	// transcript for the ID exists under root.
 	Locate(root, sessionID string) (SessionRef, error)
+
+	// Gather resolves the subagent transcripts that belong to parent: the
+	// other files a whole-task analysis must read. parent is a ref from
+	// Scan, Locate, or BuildRef (a bare BuildRef ref works: layouts that
+	// carry subagents beside the parent are re-derived from its path).
+	// Each harness has its own join, named in Task.Join; a harness whose
+	// subagents live inside the parent transcript yields no subagent
+	// refs, and its per-agent split is on the events (Event.AgentID).
+	// Errors are *ScanError.
+	Gather(root string, parent SessionRef) (Task, error)
 }
+
+// Task groups the transcripts of one session: the parent and every
+// subagent transcript the harness wrote for it, each parseable on its
+// own. It is the unit of whole-task accounting (see agentminutes.TaskStats).
+type Task struct {
+	Parent SessionRef `json:"parent"`
+
+	// Subagents are the subagent transcripts, nested ones included, in
+	// discovery order. Empty when the harness records subagents inline.
+	Subagents []SessionRef `json:"subagents,omitempty"`
+
+	// Join names how the subagents were found, one of the Join*
+	// constants; it tells a consumer how much to trust the grouping.
+	Join string `json:"join"`
+
+	// Skipped lists what the gather could not include: a candidate
+	// transcript it could not read, or a child the parent names that is
+	// not in the store. A task summary is under-counted by exactly these,
+	// so they are reported rather than dropped.
+	Skipped []TaskSkip `json:"skipped,omitempty"`
+}
+
+// TaskSkip is one transcript or child a Gather left out, with the reason.
+type TaskSkip struct {
+	// Path is the transcript that could not be read, or the id of the
+	// child that could not be located.
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+// Join values.
+const (
+	// JoinLayout: the subagent files sit in a layout position derived
+	// from the parent's path (Claude Code's <session>/subagents/).
+	JoinLayout = "layout"
+
+	// JoinSessionID: the subagent transcripts record the parent's
+	// session id in-band and are found by scanning for it (Codex).
+	JoinSessionID = "session_id"
+
+	// JoinContent: the parent's transcript content names the children
+	// (Antigravity's invoke_subagent results); a heuristic join.
+	JoinContent = "content"
+
+	// JoinInline: the subagent conversations are inside the parent
+	// transcript, attributed by Event.AgentID (Copilot CLI).
+	JoinInline = "inline"
+)
 
 // ScanOptions control a Locator.Scan.
 type ScanOptions struct {

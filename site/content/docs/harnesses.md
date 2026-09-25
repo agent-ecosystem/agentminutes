@@ -21,9 +21,24 @@ Adapters are validated against real transcripts with a mechanical
 line-accounting check. Every source line becomes an event, a counted skip,
 or an error.
 
+Every adapter was exercised against the same set of failing calls (a
+command that exits nonzero, a read of an absent path, an edit whose
+target text is missing, a fetch that 404s), and the first three parse
+as failed results everywhere. The recording differs underneath: Claude
+Code and Copilot CLI flag them natively; Codex 0.15x reports a nonzero
+exit only inside the unified exec output and a failed patch only as
+"Script failed" text, both of which the adapter reads; Antigravity
+reports a failed command only in the templated "exited with code"
+line, which the adapter reads, and other failures with an `error` key.
+The 404 is where they part: flagged on Copilot CLI and Antigravity,
+unflagged on Claude Code (the status lands in `fetch.status_code`), and
+indistinguishable from success on Codex.
+
 Two Antigravity caveats worth knowing: its transcripts carry no token
 usage, and its tool calls have no correlation IDs (the adapter
-synthesizes step-derived IDs and pairs positionally).
+synthesizes step-derived IDs and pairs positionally). Its `thinking`
+key carries a summary on Gemini models and the full plaintext reasoning
+on the Claude and GPT-OSS models it also serves.
 
 One Copilot CLI caveat: its transcripts record no per-message token
 usage. The only usage numbers are session-cumulative, per-model totals

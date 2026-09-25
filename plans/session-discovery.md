@@ -294,3 +294,20 @@ knowledge alongside the format inventory.
 - **Antigravity workspace recovery**: if a future Antigravity release
   records the `--add-dir` workspace in-band, lift it into `Meta.CWD` and
   delete the cwd-filter exclusion for that harness.
+
+## Task gather (added 2026-09-25)
+
+`Locator.Gather(root, parent) (Task, error)` is the fourth method: the
+join from a parent ref to its subagent transcripts, per harness (Claude
+Code: layout, re-derived from the parent path when the ref lacks
+`SubagentPaths`; Codex: a root scan bounded by the parent's start for
+`IsSubagent` refs sharing its `session_id`; Antigravity: the conversation
+ids embedded in `invoke_subagent` results, located and recursed;
+Copilot: the parent alone, the split being `Event.AgentID`). `Task.Join`
+names the mechanism and `Task.Skipped` reports what could not be
+included. `agentminutes.Task` builds the task summary on top of it
+(`TaskStats`: per-transcript `Stats`, `session.SumStats` aggregate,
+`by_agent`). Pins: `Gather` fixtures per locator, `locatetest.TaskInvariant`
+(env-gated, partition check over the real corpus, orphans logged), and
+the drift probe's subagent `Check` (join found, task totals equal the
+sum of the parts).
