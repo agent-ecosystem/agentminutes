@@ -1,6 +1,6 @@
 """Python wrapper around the agentminutes Go CLI, which parses native
-agent harness session logs (Antigravity CLI, Claude Code, Codex CLI) into
-a unified event schema.
+agent harness session logs (Antigravity CLI, Claude Code, Codex CLI,
+GitHub Copilot CLI) into a unified event schema.
 
 The wheel bundles the real binary and exposes it as the ``agentminutes``
 console command. Set AGENTMINUTES_BINARY to override which binary runs.

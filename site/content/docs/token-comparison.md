@@ -25,8 +25,8 @@ The short version:
   harness's injected context, tool verbosity, and caching strategy are
   all in the numbers.
 - **Missing usage is recorded as missing.** `totals` is omitted
-  entirely when a transcript records no usage (Antigravity), so a
-  measured zero is never conflated with "no data".
+  entirely when a transcript records no per-message usage (Antigravity,
+  Copilot CLI), so a measured zero is never conflated with "no data".
 
 ## Where the numbers come from
 
@@ -38,6 +38,7 @@ mechanics without touching the semantics:
 | claude-code | A growing usage snapshot on each record of a split assistant message | The adapter takes the final snapshot per API message; message values sum to the session total |
 | codex | An `event_msg` `token_count` per API request (0.154.0 adds a duplicative `token_usage_record`, preserved as telemetry and excluded from accounting) | Per-request usage pools onto the assistant message that closes the request loop; the per-request values sum to the cumulative total (verified empirically) |
 | antigravity | None | `totals` is omitted; absence of data stays distinguishable from zero |
+| copilot | None per message. `session.shutdown` carries session-cumulative per-model totals (`modelMetrics.<model>.usage`), `session.usage_checkpoint` a prompt-side snapshot of the last API call, and `subagent.completed` a `totalTokens` figure per `task` subagent | `totals` is omitted; all three records are preserved as `system` events with the numbers in `details`. A resumed session writes another cumulative `session.shutdown`, so the session total is the last one |
 
 Exactly one `assistant_message` event exists per API message, so
 per-message usage is always recoverable from the event stream when you
@@ -123,6 +124,13 @@ harness's convention is unknown, rather than guessed.
   Comparing single-turn sessions to long multi-turn sessions, or cold
   runs to warm ones, changes the cache mix and therefore any
   cost-weighted reading.
+- **Copilot's shutdown totals use Anthropic-style fields with one
+  twist.** In `session.shutdown`, `modelMetrics.<model>.usage.inputTokens`
+  is the whole prompt (uncached input plus cache reads plus cache
+  writes; verified as the exact sum on every observed session), while
+  the sibling `tokenDetails.input.tokenCount` is the uncached remainder
+  alone. Read `inputTokens` as a `total_prompt_tokens` equivalent, not
+  as `input_tokens`.
 - **Absent usage means absent, never zero.** Antigravity transcripts
   record no usage anywhere, so their sessions have no `totals` at all.
   Averages over a mixed fleet must treat those sessions as unmeasured

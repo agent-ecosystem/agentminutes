@@ -100,6 +100,41 @@ var vocabConfigs = map[harness.ID]vocabConfig{
 			"response_item": {"payload.type", "payload.name"},
 		},
 	},
+	harness.Copilot: {
+		discriminators: map[string][]string{
+			// Tool names appear on the request (assistant.message) and
+			// the execution record; the permission and error vocabularies
+			// are the harness's own enumerations.
+			"abort":                   {"data.reason"},
+			"assistant.message":       {"data.toolRequests[].name", "data.reasoningBlocks.provider"},
+			"permission.completed":    {"data.result.kind", "data.decisionSource"},
+			"permission.requested":    {"data.permissionRequest.kind", "data.promptRequest.kind", "data.permissionMode", "data.agentMode"},
+			"session.binary_asset":    {"data.type", "data.mimeType"},
+			"session.info":            {"data.infoType"},
+			"session.model_change":    {"data.source", "data.cause"},
+			"session.shutdown":        {"data.shutdownType"},
+			"skill.invoked":           {"data.source", "data.trigger"},
+			"subagent.completed":      {"data.agentName"},
+			"subagent.selected":       {"data.tools[]"},
+			"subagent.started":        {"data.agentName", "data.agentType", "data.executionMode", "data.modelSelectionSource"},
+			"tool.execution_complete": {"data.error.code"},
+			"tool.execution_start":    {"data.toolName", "data.mcpConfigSource", "data.mcpTransport"},
+			"user.message":            {"data.delivery", "data.source"},
+		},
+		// The built-in GitHub MCP server's tools are named
+		// github-mcp-server-<tool>; their set is server config, not
+		// harness vocabulary. A subagent prompt's source names the
+		// parent session ("agent-<uuid>"): the prefix is the vocabulary.
+		normalize: func(path, value string) string {
+			if (path == "data.toolRequests[].name" || path == "data.toolName") && strings.HasPrefix(value, "github-mcp-server-") {
+				return "github-mcp-server-*"
+			}
+			if path == "data.source" && strings.HasPrefix(value, "agent-") {
+				return "agent-*"
+			}
+			return value
+		},
+	},
 }
 
 // vocabBuilder accumulates vocabulary as sets across many transcripts.

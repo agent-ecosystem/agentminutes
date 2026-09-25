@@ -12,7 +12,7 @@
 // The inverse direction, parsing a recorded ACP session stream as a peer
 // harness adapter, is planned but not yet implemented.
 //
-// Bookkeeping fields (event IDs, message IDs, provenance) are transcript
+// Bookkeeping fields (event IDs, message IDs, agent IDs, provenance) are transcript
 // artifacts with no ACP meaning and are not counted as losses.
 package acp
 

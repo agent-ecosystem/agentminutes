@@ -15,20 +15,32 @@ These are the library's contract, and adapters must uphold all of them:
 
 ## Adding a harness adapter
 
+Copilot CLI (September 2026) is the reference change: one working tree touching every spot below, three probe rounds, six fixtures. The agentsummons side lands first (its `DEVELOPMENT.md` has the invocation-side checklist) and hands over a `plans/<harness>-handoff.md` with the headless flags, the transcript location, and the session ids of the probes it ran; those sessions are the first ground truth, and the inventory you write in step 1 replaces the handoff note.
+
 ### Step 0: generate fresh ground truth
 
 Do not trust transcripts already on disk, and do not trust third-party writeups of the format. Both go stale fast: between Codex 0.118 and 0.144 the shell-call mechanism, output shapes, and record vocabulary all changed; Gemini CLI ceased to exist as a product mid-2026; and community documentation of Antigravity's storage was wrong about the one thing that mattered (whether full transcripts are readable post-hoc).
 
-Run the harness headlessly, today, and script the probes to exercise each tool family separately so the transcripts isolate the shapes:
+Run the harness headlessly, today, and script the probes to exercise each tool family separately so the transcripts isolate the shapes. One deterministic action per prompt, naming the tool ("use the view tool to read note.txt, then reply with exactly: done"), seeded files where a tool needs something to act on, one scratch directory per probe (the drift probe's foreign-session veto keys on the recorded cwd), runs in sequence rather than in parallel (a shared session store), and stdin closed. Each probe costs about one premium request; the whole list below cost Copilot roughly forty, less than one wrong mapping.
+
+The families, in the order they tend to change the adapter:
 
 - plain Q&A (no tools)
-- shell/execute
-- file write/edit
+- shell/execute, plus a command that exits nonzero
+- file read, write, and edit, plus a read of an absent path and an edit whose target text is missing
 - file search (glob + grep over a seeded workdir), when the harness has dedicated search tools rather than searching via the shell
-- URL fetch or web search
-- a "do two things" prompt (to probe parallel tool calls)
+- URL fetch or web search, plus a fetch that 404s
+- a "do two things" prompt (parallel tool calls)
+- the same write with no approval bypass (the denial shape)
+- a resume of an earlier session, and a resume that switches models
+- one model per API the harness speaks. Reasoning is recorded per API, not per vendor: on Copilot, six model families reduce to three shapes because GPT, Grok, and MAI all arrive through the OpenAI Responses shape. Read the vendor's supported-models page for the list, and expect the model id to be the documented name lowercased. A rejected model id can leave a session directory with no transcript, which is itself a locator case worth keeping.
+- subagents in every mode the harness offers: sync, two in one message, background with whatever follow-up tools read and steer it, nested (a subagent that delegates), a dedicated search agent, and a user-defined agent
+- a binary result (view an image), for the asset record and the content-block shape
+- anything the harness loads as context on demand (skills, instructions) and any MCP path, both built-in and user-configured
 
-Watch for CLI flag gotchas that corrupt probes (`agy --print` consumes the next argument as the prompt; auto-approve flags differ per harness). Record the exact harness version.
+Two free sources before spending a request: the transcript itself usually names the registered tools (Copilot lists them in every usage checkpoint), and a recorded system prompt embeds each tool's usage instructions, including argument names and modes such as background delegation. Read those locally; never commit them.
+
+Watch for CLI flag gotchas that corrupt probes (`agy --print` consumes the next argument as the prompt; auto-approve flags differ per harness; macOS has no `timeout`). Record the exact harness version. Expect more than one round: the first pass shows which families exist, the transcripts of the second pass show what you still have not seen (unobserved keys and types come out of `drift scan` against a provisional baseline), and the third closes the gaps.
 
 ### Step 1: write the empirical inventory
 
@@ -44,8 +56,10 @@ Create `plans/<harness>-format-inventory.md` before writing any code, by scannin
 - **Duplicates**: records that echo other records byte-for-byte (Codex `event_msg` user/agent messages) are skip-list candidates; verify the duplication claim.
 - **Identity**: where session ID, harness version, model, cwd, and git branch live. Check field *types*, not just names (Antigravity's `error_code` is a number).
 - **Origin**: how harness-injected content is distinguishable from human input (flags, roles, wrapper tags). Document heuristics and their failure modes.
-- **Redacted/encrypted content**: thinking may be absent (Claude Code persists empty text plus signature), encrypted (Codex), or partial (Antigravity). Verify exhaustively before claiming absence: check for alternate keys, alternate record types, and sibling files.
-- **Error shapes**: API errors, tool errors, retries.
+- **Redacted/encrypted content**: thinking may be absent (Claude Code persists empty text plus signature), encrypted (Codex), or partial (Antigravity), and it may differ per model API within one harness (Copilot: Anthropic thinking blocks, OpenAI Responses encrypted blocks, and a flattened text-plus-opaque pair for the rest). Verify exhaustively before claiming absence: check for alternate keys, alternate record types, and sibling files.
+- **Subagents**: separate files (Claude Code, Codex), sibling conversations (Antigravity), or interleaved in the parent transcript (Copilot, with an envelope agent id and lifecycle records). For the interleaved case, record how a subagent's prompt is marked as agent-authored, how nesting is linked, and whether follow-up turns get a new lifecycle bracket.
+- **Error shapes**: API errors, tool errors, retries. Tool errors have at least two shapes to tell apart: the tool could not run (a denial, a missing path) versus the tool ran and reported failure (a nonzero exit, a 404), which some harnesses record as success.
+- **Binary results**: how an image the model saw is stored (Copilot: a separate asset record carrying the bytes, referenced from the result by id).
 
 Flag everything not observed locally as unverified. The loud-failure default covers the gaps; the doc keeps you honest about them.
 
@@ -58,8 +72,16 @@ Write the native-to-event mapping table in the inventory doc before coding:
 - Pure bookkeeping with no model-visible content goes on an explicit, enumerated **skip list**, counted via `OnSkip`. Byte-duplicate echoes of other records also qualify.
 - Decide the loudness boundary for unknown subtypes: unknown record *types* and unknown conversation shapes stay loud; unknown telemetry subtypes may map to `system` events when the payload is preserved in full and the vocabulary churns per release (the Codex `event_msg` precedent).
 - Exactly one `assistant_message` per API message (the accounting anchor), even if all its content became thinking or tool calls. Decide what closes the anchor and what usage attaches to it.
-- Map native tool names onto ACP `ToolKind`s conservatively; unmappable names get `other`.
-- Promote harness sidecar data: full sidecar rides verbatim in `tool_result.enrichment`; retrieval metrics (URL, raw bytes, status, duration) promote to `fetch` when present.
+- Map native tool names onto ACP `ToolKind`s conservatively; unmappable names get `other`. A tool that reads a background agent's replies is `read` (the Claude Code `TaskOutput` precedent); delegation tools stay `other`.
+- Promote harness sidecar data: full sidecar rides verbatim in `tool_result.enrichment`; retrieval metrics (URL, raw bytes, status, duration) promote to `fetch` when present, on failed fetches too. Do not promote a size that is measured after conversion; leave `raw_bytes` unset rather than report the wrong quantity.
+- A failed call is `is_error` whether the harness says the tool could not run or the tool ran and failed (a nonzero shell exit is an error on every adapter). When a failure has no result content, feed the error message to the result so the model-visible outcome is not empty.
+- A binary result becomes an `image` (or `other`) content block holding the harness's descriptor, with the bytes left in the asset record's `system` event; never inline base64 into the block.
+
+Precedents for decisions the schema does not make for you:
+
+- **Namespaced record types.** When a format's types are namespaced (`session.*`, `permission.*`), the loudness boundary can follow the namespace: unknown types under telemetry namespaces map to `system` events with the payload in full, unknown types under conversation namespaces (`assistant.*`, `user.*`, `tool.*`) fail loudly. Every namespace still needs a known-types table so the baseline sees the vocabulary.
+- **Interleaved subagents.** A subagent whose records share the parent's file is attributed with `Event.AgentID` (stamped on every one of its events), its delegated prompt is `user_message` with origin `harness` (the parent agent wrote it), and its lifecycle records are `system` events; `Meta.IsSubagent` stays for harnesses that write separate files. This was the one schema addition Copilot needed, additive and with no `SchemaVersion` bump.
+- **Usage that is not per message.** When the format records only session-cumulative totals (Copilot's shutdown record) or a prompt-side snapshot, attach nothing to assistant messages and leave `totals` nil: the per-message `Usage` field must not carry a session total. Preserve the records as `system` events, document the field semantics in the inventory (which number is the whole prompt, which is the uncached remainder), and add the harness's row to the docs site's usage-source table.
 
 ### Step 3: implement
 
@@ -80,9 +102,11 @@ Conventions the existing adapters share (use `internal/parseutil` rather than re
 
 `Sniff` rules: inspect only the first line (plus a marker-based fallback for headers cut off mid-line, since first lines can exceed the sniff window). Return `Certain` only on markers distinctive to this format, `Possible` for plausible-but-generic, `NoMatch` otherwise. It must return `NoMatch` for the other harnesses' transcripts; there are cross-harness Sniff tests to copy.
 
-### Step 4: fixture
+### Step 4: fixtures
 
-Write a **synthetic** fixture in `harness/<name>/testdata/`, modeled block-for-block on the real shapes. Synthetic because real transcripts embed vendor system prompts (license risk) and personal data (privacy). It must exercise every mapped record type plus every structural edge case the inventory found: the out-of-order record, the interleaved fold, the orphan result, the error record with its real field types.
+Write **synthetic** fixtures in `harness/<name>/testdata/`, modeled block-for-block on the real shapes. Synthetic because real transcripts embed vendor system prompts (license risk) and personal data (privacy). Together they must exercise every mapped record type plus every structural edge case the inventory found: the out-of-order record, the interleaved fold, the orphan result, the error record with its real field types.
+
+Generate them rather than hand-write them: a throwaway script with one helper per record type (Copilot's lived in the session scratchpad) produces valid, compact JSONL with correct chain ids and monotonic timestamps, and makes a 145-line interleaved-subagent fixture a few minutes' work. Commit the output only. Split by shape family (base conversation, subagents, tools, errors, ...) instead of growing one fixture: an event-sequence test over a single file breaks every time a later round adds a shape, while a new fixture with its own test leaves the old ones untouched. When a test asserts a count, derive it from the fixture spec rather than from memory; two of Copilot's first-run failures were miscounted expectations.
 
 ### Step 5: tests
 
@@ -107,11 +131,13 @@ All lists are alphabetical:
 - `harness.ID` constant in `harness/harness.go`
 - `harness.LastValidated` entry in `harness/versions.go` (the release the inventory was validated against; a registry test enforces presence)
 - the facade registries in `agentminutes.go` — `adapters` and `locators` (explicit lists; no `init()` registration; a registry test keeps them in step)
-- drift devtool wiring in `internal/driftprobe/`: a `vocabConfigs` entry (discriminator paths where the format hides its churn) and a generated `baselines/<id>.json`. Headless invocation comes from the sibling agentsummons library (`DefaultRunners` builds one runner per registered locator), so the new harness must be supported there first — its spec table is the single home of flag knowledge
+- drift devtool wiring in `internal/driftprobe/`: a `vocabConfigs` entry (discriminator paths where the format hides its churn, with a `normalize` for user-configured vocabulary such as MCP tool names when a prefix identifies it), a generated `baselines/<id>.json`, every fixture in `TestScanFixturesClean`, the runner list in `TestDefaultRunnersAlphabetical`, and a harness-scoped search probe in `DefaultProbes` when the harness has dedicated search tools (name-exact, with the tool restriction that keeps the shell out of reach). Headless invocation comes from the sibling agentsummons library (`DefaultRunners` builds one runner per registered locator), so the new harness must be supported there first — its spec table is the single home of flag knowledge
 - a `Detect` assertion in `agentminutes_test.go` proving disambiguation
-- `--harness` flag help in `cmd/agentminutes/convert.go`, `sessions.go`, and `stats.go`
-- README: support table row, the validated-versions sentence, caveats stated plainly
-- root `doc.go` and the CLI long description if the harness list appears there
+- `--harness` flag help derives from the registry; the CLI long description in `cmd/agentminutes/main.go`, root `doc.go`, `.goreleaser.yaml`, and `CLAUDE.md` (the description and the local-validation command block) spell the list out
+- README: support table row (alphabetical, so a "not planned" row can sit between supported ones), caveats stated plainly
+- the docs site, none of it enforced (grep the whole tree for the previous harness's name and for "three"/"four", excluding `plans/` and the changelog): `hugo.toml` (the site description), `content/_index.md`, `content/docs/_index.md`, and `data/landing.yaml` descriptions, `docs/harnesses.md` (table row and a caveat paragraph), `docs/discovery.md` (the roots list), `docs/use-cases.md`, `docs/token-comparison.md` (a row in the usage-source table, and a bullet if the field semantics are new), `docs/schema.md` (any new field or exception, such as inline subagents), `docs/subagents.md` (a section per harness), and `sharing-image.html` (the tagline names every harness), followed by `site/generate_sharing_image` to re-render `static/sharing.png` with headless Chrome
+- the wrappers: `wrappers/npm/package.json` and `wrappers/pypi/pyproject.toml` keywords, both wrapper READMEs, and the PyPI `__init__.py` docstring (the wrapper tests are harness-agnostic, so nothing fails when these are stale)
+- `CHANGELOG.md` Unreleased, and `plans/next-steps.md` for what stayed unobserved
 
 ### Step 7: verify
 
@@ -123,6 +149,10 @@ AGENTMINUTES_LOCAL_<NAME>_TRANSCRIPTS=<dir> go test ./harness/<name>/ -run 'Test
 ```
 
 Then end-to-end: build the CLI and run `detect`, `convert` (both formats), `stats`, and `sessions --harness <name>` against a real transcript root. Auto-detection must pick the right adapter with the others registered.
+
+Then the drift loop, once per probe round: `drift scan` over the local corpus names every key, type, and discriminator value the baseline has not seen (tool names, error codes, provider ids), which is the list of what to inventory or widen next; regenerate the baseline over the fixtures plus the corpus root when the round is reconciled (`TestScanFixturesClean` pins the fixtures against it, so an unregenerated baseline fails the suite). Finally `drift probe --harness <id> --force --keep`, which exercises the six standard probes end to end and is the check that the search probe's tool names are right.
+
+Docs pages go through `site/check_prose_style`, `vale --config site/.vale.ini README.md`, and a `hugo` build before they are done.
 
 ## Harness format versioning
 

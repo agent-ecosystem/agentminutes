@@ -28,6 +28,7 @@ evolve until 1.0.
 | Claude Code | Supported | `~/.claude/projects/<project>/*.jsonl` |
 | Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
 | Gemini CLI (classic) | Not planned | Retired for individual users June 2026; Antigravity is its successor |
+| GitHub Copilot CLI | Supported | `~/.copilot/session-state/<session-id>/events.jsonl` |
 
 Adapters are validated against real transcripts with a mechanical
 line-accounting check: every source line becomes an event, a counted

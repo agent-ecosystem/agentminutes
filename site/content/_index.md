@@ -1,6 +1,6 @@
 ---
 title: agentminutes
-description: Parse native agent harness session logs (Antigravity CLI, Claude Code, Codex CLI) into one unified, comparable event schema.
+description: Parse native agent harness session logs (Antigravity CLI, Claude Code, Codex CLI, GitHub Copilot CLI) into one unified, comparable event schema.
 ---
 
 Meeting minutes for your agents. Agent harnesses record everything that

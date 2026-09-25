@@ -21,7 +21,7 @@ hero:
     soft: true
 
   title: "agentminutes"
-  subtitle: Meeting minutes for your agents. Parse native session logs from **Antigravity CLI**, **Claude Code**, and **Codex CLI** into one unified, comparable event schema.
+  subtitle: Meeting minutes for your agents. Parse native session logs from **Antigravity CLI**, **Claude Code**, **Codex CLI**, and **GitHub Copilot CLI** into one unified, comparable event schema.
 
   # Inline SVG terminal card (assets/images/terminal-hero.svg). Its text is
   # in the DOM, so it's excluded from parity in agent-docs.config.yml.
@@ -50,9 +50,9 @@ featureGrid:
   subtitle: Harness transcripts are ground truth for how an agent actually behaved, and every harness invents its own format. agentminutes parses them all into a single event schema you can analyze and compare, in Go or from the command line.
 
   items:
-    - title: One schema, three harnesses
+    - title: One schema, four harnesses
       icon: hub
-      description: Sessions from Antigravity CLI, Claude Code, and Codex CLI normalize into the same ordered event list, so analysis written once works across harnesses.
+      description: Sessions from Antigravity CLI, Claude Code, Codex CLI, and GitHub Copilot CLI normalize into the same ordered event list, so analysis written once works across harnesses.
 
     - title: Every line accounted for
       icon: fact_check

@@ -80,6 +80,12 @@ func TestDetect(t *testing.T) {
 		t.Errorf("Detect(antigravity line) = %v, %v", a, conf)
 	}
 
+	copilotLine := `{"type":"session.start","data":{"sessionId":"s-1","version":1,"producer":"copilot-agent","copilotVersion":"1.0.88","context":{"cwd":"/tmp"}},"id":"e-1","timestamp":"2026-09-25T15:00:00.000Z","parentId":null}`
+	a, conf = agentminutes.Detect([]byte(copilotLine))
+	if conf != harness.Certain || a == nil || a.ID() != harness.Copilot {
+		t.Errorf("Detect(copilot line) = %v, %v", a, conf)
+	}
+
 	a, conf = agentminutes.Detect([]byte("not a transcript"))
 	if conf != harness.NoMatch || a != nil {
 		t.Errorf("Detect(garbage) = %v, %v", a, conf)

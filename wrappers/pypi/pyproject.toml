@@ -11,7 +11,7 @@ readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Dachary Carey" }]
 requires-python = ">=3.9"
-keywords = ["agent", "harness", "session-logs", "transcripts", "claude-code", "codex", "antigravity", "parser"]
+keywords = ["agent", "harness", "session-logs", "transcripts", "claude-code", "codex", "antigravity", "copilot", "parser"]
 
 [project.urls]
 Homepage = "https://agentminutes.dev"

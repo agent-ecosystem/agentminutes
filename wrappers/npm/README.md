@@ -1,8 +1,8 @@
 # agentminutes
 
 Parses native agent harness session logs (Antigravity CLI, Claude Code,
-Codex CLI) into a unified event schema, so tool calls, results, and
-messages are comparable across harnesses.
+Codex CLI, GitHub Copilot CLI) into a unified event schema, so tool
+calls, results, and messages are comparable across harnesses.
 
 This package wraps the prebuilt Go binary. The matching platform binary
 (darwin, linux, or win32 on x64 or arm64) is installed automatically via

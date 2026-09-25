@@ -70,6 +70,13 @@ type Event struct {
 	// MessageID correlates events folded out of one assistant API message.
 	MessageID string `json:"message_id,omitempty" schema:"ext"`
 
+	// AgentID attributes an event to a subagent when the harness
+	// interleaves subagent conversations into the parent transcript
+	// (Copilot CLI stamps every subagent record with its agent id).
+	// Empty for the main agent, and for harnesses that write subagents
+	// to their own transcripts (see Meta.SubagentID).
+	AgentID string `json:"agent_id,omitempty" schema:"ext"`
+
 	// Provenance points back at the native transcript records this event
 	// was derived from.
 	Provenance *Provenance `json:"provenance,omitempty" schema:"ext"`

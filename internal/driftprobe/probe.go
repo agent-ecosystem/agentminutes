@@ -197,6 +197,21 @@ func DefaultProbes() []Probe {
 			Missing: missingNamedTools("Glob", "Grep"),
 		},
 		{
+			Name: "search",
+			// Copilot's dedicated glob/grep tools are the lowercase
+			// pair; the restriction keeps the shell out of reach so the
+			// probe cannot pass by searching via bash.
+			Harnesses:    []harness.ID{harness.Copilot},
+			AllowedTools: []string{"glob", "grep"},
+			Files: map[string]string{
+				"notes/alpha.txt": "alpha note; the needle is drift-probe-needle\n",
+				"notes/beta.txt":  "beta note with nothing to find\n",
+			},
+			Prompt:  `Call the glob tool with pattern "notes/*.txt" to list the text files in this directory, then call the grep tool to find which of those files contains the string drift-probe-needle. Do not use bash or any shell command, do not read files, and do not spawn subagents. Reply with the matching file's name.`,
+			Retry:   `You must invoke the actual glob and grep tools yourself, not bash, not find, not shell grep, not a subagent. Step 1: call glob with pattern "notes/*.txt". Step 2: call grep with pattern "drift-probe-needle". Then reply with the matching file's name.`,
+			Missing: missingNamedTools("glob", "grep"),
+		},
+		{
 			Name:    "fetch",
 			Prompt:  "Use your web tool to fetch https://example.com/ and tell me the exact text of the page's main heading. Fetch the live page; do not answer from memory.",
 			Retry:   "You must actually retrieve the page. Fetch https://example.com/ with your web/URL tool now and quote its main heading. Do not answer from memory.",

@@ -1,0 +1,592 @@
+{
+  "harness": "copilot",
+  "generated_from_version": "1.0.88",
+  "record_types": {
+    "abort": {
+      "keys": [
+        "data",
+        "data.reason",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.reason": [
+          "user_initiated"
+        ]
+      }
+    },
+    "assistant.message": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.apiCallId",
+        "data.content",
+        "data.encryptedContent",
+        "data.interactionId",
+        "data.messageId",
+        "data.model",
+        "data.originatingMessageId",
+        "data.parentToolCallId",
+        "data.phase",
+        "data.reasoningBlocks",
+        "data.reasoningOpaque",
+        "data.reasoningText",
+        "data.rte",
+        "data.serverTools",
+        "data.toolRequests",
+        "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.reasoningBlocks.provider": [
+          "anthropic-messages",
+          "openai-responses"
+        ],
+        "data.toolRequests[].name": [
+          "bash",
+          "create",
+          "edit",
+          "everything-echo",
+          "fetch_copilot_cli_documentation",
+          "file_search",
+          "github-mcp-server-*",
+          "glob",
+          "grep",
+          "grep_search",
+          "list_agents",
+          "list_bash",
+          "read_agent",
+          "read_bash",
+          "read_file",
+          "search_code_subagent",
+          "session_store_sql",
+          "skill",
+          "sql",
+          "stop_bash",
+          "task",
+          "view",
+          "web_fetch",
+          "write_agent"
+        ]
+      }
+    },
+    "assistant.turn_end": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "assistant.turn_start": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.interactionId",
+        "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "permission.completed": {
+      "keys": [
+        "data",
+        "data.decisionSource",
+        "data.requestId",
+        "data.result",
+        "data.toolCallId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.decisionSource": [
+          "unattended_fallback"
+        ],
+        "data.result.kind": [
+          "denied-no-approval-rule-and-could-not-request-from-user"
+        ]
+      }
+    },
+    "permission.requested": {
+      "keys": [
+        "data",
+        "data.agentMode",
+        "data.permissionMode",
+        "data.permissionRequest",
+        "data.promptRequest",
+        "data.requestId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.agentMode": [
+          "interactive"
+        ],
+        "data.permissionMode": [
+          "manual"
+        ],
+        "data.permissionRequest.kind": [
+          "shell",
+          "write"
+        ],
+        "data.promptRequest.kind": [
+          "commands",
+          "write"
+        ]
+      }
+    },
+    "session.binary_asset": {
+      "keys": [
+        "data",
+        "data.assetId",
+        "data.byteLength",
+        "data.data",
+        "data.description",
+        "data.mimeType",
+        "data.type",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.mimeType": [
+          "image/png"
+        ],
+        "data.type": [
+          "image"
+        ]
+      }
+    },
+    "session.info": {
+      "keys": [
+        "data",
+        "data.infoType",
+        "data.message",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.infoType": [
+          "folder_trust"
+        ]
+      }
+    },
+    "session.model_change": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.cause",
+        "data.contextTier",
+        "data.newModel",
+        "data.previousModel",
+        "data.reasoningEffort",
+        "data.source",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.cause": [
+          "initial_resolution"
+        ],
+        "data.source": [
+          "agent",
+          "automatic",
+          "startup"
+        ]
+      }
+    },
+    "session.permissions_changed": {
+      "keys": [
+        "data",
+        "data.allowAllPermissionMode",
+        "data.allowAllPermissions",
+        "data.previousAllowAllPermissionMode",
+        "data.previousAllowAllPermissions",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "session.resume": {
+      "keys": [
+        "data",
+        "data.alreadyInUse",
+        "data.context",
+        "data.contextTier",
+        "data.eventCount",
+        "data.eventsFileSizeBytes",
+        "data.remoteSteerable",
+        "data.resumeTime",
+        "data.selectedModel",
+        "data.sessionLimits",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "session.shutdown": {
+      "keys": [
+        "data",
+        "data.agentMetrics",
+        "data.codeChanges",
+        "data.conversationTokens",
+        "data.currentModel",
+        "data.currentTokens",
+        "data.eventsFileSizeBytes",
+        "data.modelMetrics",
+        "data.sessionStartTime",
+        "data.shutdownType",
+        "data.systemTokens",
+        "data.tokenDetails",
+        "data.toolDefinitionsTokens",
+        "data.totalApiDurationMs",
+        "data.totalNanoAiu",
+        "data.totalPremiumRequests",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.shutdownType": [
+          "routine"
+        ]
+      }
+    },
+    "session.start": {
+      "keys": [
+        "data",
+        "data.alreadyInUse",
+        "data.context",
+        "data.contextTier",
+        "data.copilotVersion",
+        "data.producer",
+        "data.reasoningEffort",
+        "data.remoteSteerable",
+        "data.selectedModel",
+        "data.sessionId",
+        "data.startTime",
+        "data.version",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "session.usage_checkpoint": {
+      "keys": [
+        "data",
+        "data.modelCacheState",
+        "data.promptCacheBreakState",
+        "data.totalNanoAiu",
+        "data.totalPremiumRequests",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "skill.context_delivered_ref": {
+      "keys": [
+        "data",
+        "data.contentId",
+        "data.interactionId",
+        "data.prefix",
+        "data.source",
+        "data.suffix",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "skill.invoked": {
+      "keys": [
+        "data",
+        "data.allowedTools",
+        "data.content",
+        "data.description",
+        "data.invokedAtTurn",
+        "data.model",
+        "data.name",
+        "data.path",
+        "data.pluginName",
+        "data.pluginVersion",
+        "data.source",
+        "data.trigger",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.source": [
+          "project"
+        ],
+        "data.trigger": [
+          "agent-invoked"
+        ]
+      }
+    },
+    "subagent.completed": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.agentDisplayName",
+        "data.agentName",
+        "data.durationMs",
+        "data.firstDispatchedModel",
+        "data.model",
+        "data.modelSelectionSource",
+        "data.toolCallId",
+        "data.totalTokens",
+        "data.totalToolCalls",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.agentName": [
+          "echoer",
+          "general-purpose",
+          "search-subagent",
+          "task"
+        ]
+      }
+    },
+    "subagent.configured": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.model",
+        "data.multiTurn",
+        "data.reasoningEffort",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "subagent.selected": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.agentDisplayName",
+        "data.agentName",
+        "data.tools",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.tools[]": [
+          "bash",
+          "create",
+          "everything-echo",
+          "fetch_copilot_cli_documentation",
+          "file_search",
+          "grep_search",
+          "read_file",
+          "session_store_sql",
+          "skill",
+          "sql"
+        ]
+      }
+    },
+    "subagent.started": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.agentDescription",
+        "data.agentDisplayName",
+        "data.agentName",
+        "data.agentType",
+        "data.executionMode",
+        "data.model",
+        "data.modelSelectionSource",
+        "data.parentId",
+        "data.resumable",
+        "data.taskModelSource",
+        "data.toolCallId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.agentName": [
+          "echoer",
+          "general-purpose",
+          "search-subagent",
+          "task"
+        ],
+        "data.agentType": [
+          "echoer",
+          "general-purpose",
+          "search-subagent",
+          "task"
+        ],
+        "data.executionMode": [
+          "background",
+          "sync"
+        ],
+        "data.modelSelectionSource": [
+          "agent_definition_default",
+          "runtime_policy",
+          "session_inheritance"
+        ]
+      }
+    },
+    "system.message": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.content",
+        "data.contentBlocks",
+        "data.interactionId",
+        "data.role",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "tool.execution_complete": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.error",
+        "data.interactionId",
+        "data.model",
+        "data.parentToolCallId",
+        "data.result",
+        "data.rte",
+        "data.shellExecution",
+        "data.success",
+        "data.toolCallId",
+        "data.toolTelemetry",
+        "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.error.code": [
+          "denied",
+          "failure"
+        ]
+      }
+    },
+    "tool.execution_start": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.arguments",
+        "data.mcpConfigServerName",
+        "data.mcpConfigSource",
+        "data.mcpServerName",
+        "data.mcpToolName",
+        "data.mcpTransport",
+        "data.model",
+        "data.parentToolCallId",
+        "data.shellToolInfo",
+        "data.toolCallId",
+        "data.toolName",
+        "data.toolTitle",
+        "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.mcpConfigSource": [
+          "builtin",
+          "user"
+        ],
+        "data.mcpTransport": [
+          "http",
+          "stdio"
+        ],
+        "data.toolName": [
+          "bash",
+          "create",
+          "edit",
+          "everything-echo",
+          "fetch_copilot_cli_documentation",
+          "file_search",
+          "github-mcp-server-*",
+          "glob",
+          "grep",
+          "grep_search",
+          "list_agents",
+          "list_bash",
+          "read_agent",
+          "read_bash",
+          "read_file",
+          "search_code_subagent",
+          "session_store_sql",
+          "skill",
+          "sql",
+          "stop_bash",
+          "task",
+          "view",
+          "web_fetch",
+          "write_agent"
+        ]
+      }
+    },
+    "user.message": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.content",
+        "data.delivery",
+        "data.interactionId",
+        "data.messageId",
+        "data.parentAgentTaskId",
+        "data.source",
+        "data.supportedNativeDocumentMimeTypes",
+        "data.transformedContent",
+        "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ],
+      "discriminators": {
+        "data.delivery": [
+          "",
+          "idle"
+        ],
+        "data.source": [
+          "agent-*"
+        ]
+      }
+    }
+  }
+}

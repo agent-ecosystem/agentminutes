@@ -44,7 +44,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://github.com/agent-ecosystem/agentminutes
-    description: Parse agent harness session logs (Antigravity CLI, Claude Code, Codex CLI) into a unified event schema
+    description: Parse agent harness session logs (Antigravity CLI, Claude Code, Codex CLI, GitHub Copilot CLI) into a unified event schema
     license: MIT
     install: |
       bin.install "agentminutes"

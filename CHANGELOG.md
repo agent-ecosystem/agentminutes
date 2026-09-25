@@ -6,6 +6,56 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Copilot CLI support (`copilot`), validated against 1.0.88
+  transcripts (`~/.copilot/session-state/<session-id>/events.jsonl`).
+  `session.start` becomes `session_meta` (session id, Copilot version,
+  cwd, git branch); `user.message` and `assistant.message` become the
+  conversation, with provider-native reasoning blocks as `thinking`
+  events and `toolRequests` as `tool_call`s sharing the message id;
+  `tool.execution_complete` becomes the `tool_result` (denied calls are
+  errors carrying the denial message; `web_fetch` results promote the
+  URL and HTTP status to `fetch`). Reasoning is mapped for every model
+  family the CLI offers, validated per family (Anthropic thinking
+  blocks with signatures; the OpenAI Responses encrypted reasoning
+  blocks that GPT, Grok, and MAI models share; the flattened
+  `reasoningText`/`reasoningOpaque` pair Gemini and Kimi record). Subagents (`task`,
+  `search_code_subagent`) are recorded inside the parent transcript:
+  their conversations parse as ordinary events attributed by the new
+  `agent_id` event field, their prompts have origin `harness`, and the
+  `subagent.*` lifecycle records are `system` events. Every built-in tool on 1.0.88 was
+  exercised, and six fixtures pin the shapes: the base conversation,
+  sync subagents, parallel/background/nested/custom subagents, the
+  file/search/shell/fetch/MCP tools, every tool-failure shape (a tool
+  that could not run has `error.code` `failure`; a shell command that
+  exited nonzero is `success: true` with the exit code, and both parse
+  as failed results) plus an image viewed with `view` (a
+  `session.binary_asset` record, surfaced as an `image` content block
+  on the result), and skills (`skill.invoked` and
+  `skill.context_delivered_ref` records) with the sql, documentation,
+  and user-configured MCP tools. Every other record (turn
+  boundaries, permission prompts, `system.message`, usage checkpoints,
+  shutdown, resume, abort) is a `system` event with the payload
+  verbatim, and unknown `session.*`, `permission.*`, `skill.*`, and `subagent.*`
+  subtypes map there too. The format records no per-message usage, so `totals` is
+  omitted; the session-cumulative per-model numbers live in the
+  `session.shutdown` event's details. The locator scans the
+  per-session directories (honoring `COPILOT_HOME`), accounts for every
+  sidecar, and resolves a session id directly to its directory. The
+  drift probe gains a Copilot search probe over the `glob`/`grep`
+  tools.
+
+- `agent_id` on events (schema extension, additive): set when a harness
+  interleaves a subagent's conversation into the parent transcript,
+  empty for the main agent and for harnesses whose subagents have their
+  own transcripts. `SchemaVersion` stays 0.1.0.
+
+### Changed
+
+- Bumped the agentsummons dependency to v0.4.0, which adds Copilot CLI
+  headless invocation.
+
 ## [0.5.2] - 2026-09-25
 
 ### Changed

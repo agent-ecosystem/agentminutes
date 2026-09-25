@@ -1,6 +1,6 @@
 # agentminutes
 
-Go library + CLI parsing native agent harness session logs (Antigravity CLI, Claude Code, Codex CLI) into a unified event schema. Read `README.md` for the schema contract and `DEVELOPMENT.md` before touching adapters; the empirical format inventories under `plans/` are the ground truth for each harness's quirks.
+Go library + CLI parsing native agent harness session logs (Antigravity CLI, Claude Code, Codex CLI, GitHub Copilot CLI) into a unified event schema. Read `README.md` for the schema contract and `DEVELOPMENT.md` before touching adapters; the empirical format inventories under `plans/` are the ground truth for each harness's quirks.
 
 ## Commands
 
@@ -15,6 +15,7 @@ GOOS=windows go build ./...   # CI also tests on windows-latest
 AGENTMINUTES_LOCAL_TRANSCRIPTS=~/.claude/projects go test ./harness/claudecode/ -run 'TestLocal' -v
 AGENTMINUTES_LOCAL_CODEX_TRANSCRIPTS=~/.codex/sessions go test ./harness/codex/ -run 'TestLocal' -v
 AGENTMINUTES_LOCAL_ANTIGRAVITY_TRANSCRIPTS=~/.gemini/antigravity-cli/brain go test ./harness/antigravity/ -run 'TestLocal' -v
+AGENTMINUTES_LOCAL_COPILOT_TRANSCRIPTS=~/.copilot/session-state go test ./harness/copilot/ -run 'TestLocal' -v
 # ACP projection loss report over real transcripts:
 AGENTMINUTES_LOCAL_TRANSCRIPTS=~/.claude/projects go test ./acp/ -run TestLocalLossReport -v
 ```

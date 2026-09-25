@@ -7,7 +7,7 @@ weight: 500
 
 Harnesses write transcripts to global, harness-owned locations
 (`~/.claude/projects`, `~/.codex/sessions`,
-`~/.gemini/antigravity-cli/brain`). Discovery scans those roots, reads
+`~/.copilot/session-state`, `~/.gemini/antigravity-cli/brain`). Discovery scans those roots, reads
 each transcript's identity cheaply (a header read via the real parser,
 never a second format), and filters by the keys harnesses actually
 record.

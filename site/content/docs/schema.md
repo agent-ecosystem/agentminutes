@@ -37,7 +37,9 @@ field is set per event, matching its `kind`:
   (claude-code) reports it as only the uncached remainder alongside
   disjoint cache read and creation fields. Adapters preserve what the
   harness recorded, so `input_tokens` is never directly comparable
-  across harnesses. Session totals therefore also carry
+  across harnesses (and Copilot CLI records no per-message usage at
+  all, so its `totals` are omitted; see
+  [Comparing Token Counts](/docs/token-comparison/)). Session totals therefore also carry
   `total_prompt_tokens`, derived from each harness's documented
   convention: that is the number to compare. See the
   [worked comparison](/docs/example-comparison/#what-the-comparison-shows)
@@ -51,7 +53,10 @@ field is set per event, matching its `kind`:
   one `assistant_message` is emitted per API message, even when all of
   its content became `thinking` or `tool_call` events, so token totals
   are always derivable. Events from the same API message share a
-  `message_id`.
+  `message_id`. When a harness interleaves a subagent's conversation
+  into the parent transcript (copilot), every event of that
+  conversation carries the subagent's `agent_id`; it is empty for the
+  main agent.
 - **One session record covers one transcript; a task can span
   several.** A harness that delegates to subagents writes each
   subagent conversation as its own transcript, and each parses to its
@@ -60,7 +65,10 @@ field is set per event, matching its `kind`:
   `session_id` and carries `subagent_id` with `is_subagent: true`, so
   grouping a task is a `session_id` match. Task-scope analysis must
   gather all of a session's transcripts first; see
-  [Subagents](/docs/subagents/).
+  [Subagents](/docs/subagents/). Copilot CLI is the exception: its
+  subagents write into the parent transcript, so one session record
+  already covers the task, and `agent_id` is what separates the
+  parent's events from each subagent's.
 - **`tool_call` and `tool_result` stay separate, in stream order.**
   Ordering is data. Interleaving, parallel tool execution, and retries
   are visible in the sequence. `Session.ToolInteractions()` provides the

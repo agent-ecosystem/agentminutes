@@ -13,6 +13,7 @@ import (
 	"github.com/agent-ecosystem/agentminutes/harness/antigravity"
 	"github.com/agent-ecosystem/agentminutes/harness/claudecode"
 	"github.com/agent-ecosystem/agentminutes/harness/codex"
+	"github.com/agent-ecosystem/agentminutes/harness/copilot"
 	"github.com/agent-ecosystem/agentminutes/session"
 )
 
@@ -28,6 +29,7 @@ var adapters = []harness.Adapter{
 	antigravity.Adapter{},
 	claudecode.Adapter{},
 	codex.Adapter{},
+	copilot.Adapter{},
 }
 
 // Adapters returns the supported harness adapters.
@@ -87,6 +89,7 @@ var locators = []harness.Locator{
 	antigravity.Adapter{},
 	claudecode.Adapter{},
 	codex.Adapter{},
+	copilot.Adapter{},
 }
 
 // Locators returns the supported session discovery implementations.

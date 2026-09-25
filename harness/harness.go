@@ -20,6 +20,7 @@ const (
 	Antigravity ID = "antigravity"
 	ClaudeCode  ID = "claude-code"
 	Codex       ID = "codex"
+	Copilot     ID = "copilot"
 )
 
 // Options control parsing behavior across all adapters.

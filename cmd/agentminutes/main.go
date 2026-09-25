@@ -89,8 +89,9 @@ func newRootCmd() *cobra.Command {
 		Use:   "agentminutes",
 		Short: "Parse agent session transcripts into a unified event schema",
 		Long: `agentminutes parses native agent harness session logs (Antigravity
-CLI, Claude Code, Codex CLI) into a unified event schema, so tool calls,
-results, and messages are comparable across harnesses.`,
+CLI, Claude Code, Codex CLI, GitHub Copilot CLI) into a unified event
+schema, so tool calls, results, and messages are comparable across
+harnesses.`,
 		Version:      cliVersion(),
 		SilenceUsage: true,
 	}

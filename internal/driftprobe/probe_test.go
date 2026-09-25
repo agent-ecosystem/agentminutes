@@ -235,7 +235,7 @@ func TestProbeSeedsWorkdirFiles(t *testing.T) {
 // registry and the alphabetical-lists rule.
 func TestDefaultRunnersAlphabetical(t *testing.T) {
 	runners := DefaultRunners()
-	want := []harness.ID{harness.Antigravity, harness.ClaudeCode, harness.Codex}
+	want := []harness.ID{harness.Antigravity, harness.ClaudeCode, harness.Codex, harness.Copilot}
 	if len(runners) != len(want) {
 		t.Fatalf("got %d runners, want %d", len(runners), len(want))
 	}

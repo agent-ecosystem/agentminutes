@@ -10,12 +10,13 @@ chose, what it retrieved, what it saw back, what it spent. That makes
 them the evidence base for any question about agent behavior. The catch
 is that every harness writes a different format, so any analysis
 written against one harness's logs stops at that harness. Normalizing
-to one schema is what turns "read three formats" into "answer the
+to one schema is what turns "read four formats" into "answer the
 question once." You might want to use agentminutes to:
 
 ## Compare harnesses on the same task
 
-Run the same prompt through Claude Code, Antigravity CLI, and Codex CLI
+Run the same prompt through Claude Code, Antigravity CLI, Codex CLI,
+and GitHub Copilot CLI
 (its companion [agentsummons](https://agentsummons.dev) exists to do
 exactly this), and the normalized transcripts show where the runs
 diverged: which tools each harness chose, how many calls it made, what

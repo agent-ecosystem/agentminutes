@@ -148,6 +148,12 @@ func TestScanFixturesClean(t *testing.T) {
 		"claude-code-search-fallback": filepath.Join("..", "..", "harness", "claudecode", "testdata", "search_fallback.jsonl"),
 		"codex":                       filepath.Join("..", "..", "harness", "codex", "testdata", "rollout.jsonl"),
 		"codex-item-stream":           filepath.Join("..", "..", "harness", "codex", "testdata", "item_stream.jsonl"),
+		"copilot":                     filepath.Join("..", "..", "harness", "copilot", "testdata", "events.jsonl"),
+		"copilot-subagents":           filepath.Join("..", "..", "harness", "copilot", "testdata", "subagents.jsonl"),
+		"copilot-tools":               filepath.Join("..", "..", "harness", "copilot", "testdata", "tools.jsonl"),
+		"copilot-errors":              filepath.Join("..", "..", "harness", "copilot", "testdata", "errors.jsonl"),
+		"copilot-skills":              filepath.Join("..", "..", "harness", "copilot", "testdata", "skills.jsonl"),
+		"copilot-subagents-advanced":  filepath.Join("..", "..", "harness", "copilot", "testdata", "subagents_advanced.jsonl"),
 	}
 	for name, path := range fixtures {
 		data, err := os.ReadFile(path)

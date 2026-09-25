@@ -14,11 +14,11 @@ delegation happen, and none of the delegated work: the tool calls, the
 files read, and roughly all of the subagents' token usage are in files
 you never opened.
 
-All three harnesses can spawn subagents, and their recordings differ in
+All the harnesses can spawn subagents, and their recordings differ in
 exactly the ways that bite an analysis. This page walks the Claude Code
 mechanics in depth (where the files live, the three ways they tie back
 to the parent, and how to analyze a task as a whole), then covers what
-Codex and Antigravity do instead. Everything here was validated against
+Codex, Antigravity, and Copilot CLI do instead. Everything here was validated against
 live spawn probes on the versions in
 [Harness Support](/docs/harnesses/).
 
@@ -212,3 +212,51 @@ child's conversation id and resolves it to its transcript path, and
 the second prints the parent's id from inside the child. Token
 accounting is unaffected either way: antigravity transcripts record
 no usage, so subagent or not, its sessions have no `totals`.
+
+## GitHub Copilot CLI
+
+Copilot CLI (1.0.88) records subagent conversations **inside the parent
+transcript** rather than in files of their own. A delegation is a
+`tool_call` named `task` (a general subagent whose prompt, name, and
+`agent_type` are in the input) or `search_code_subagent` (a read-only
+search agent on a dedicated model with a constrained toolset of
+`file_search`, `grep_search`, and `read_file`). What follows in the
+stream is the subagent's own conversation: its prompt as a
+`user_message` with origin `harness` (the parent agent wrote it, not
+the human), its `assistant_message`, `thinking`, `tool_call`, and
+`tool_result` events, and its turn boundaries, every one stamped with
+the subagent's `agent_id`. The parent's `tool_result` for the
+delegation carries the subagent's final text, and can land before or
+after the subagent's last events.
+
+`system` events bracket each subagent: `subagent.started` (the parent
+tool call id, agent name and type, resolved model), `subagent.configured`,
+`subagent.selected` (the search agent's tool list), and
+`subagent.completed`. For a `task` subagent, `subagent.completed` also
+records `totalToolCalls`, `totalTokens`, and `durationMs`, the only
+per-subagent usage the format carries. The join is `subagent.started`:
+its `agent_id` is the value on the subagent's events, and its
+`toolCallId` is the parent's `tool_call`.
+
+Delegation comes in more shapes than the sync case, all recorded the
+same way: two `task` calls in one message run as two agents whose
+records interleave (tool call ids keep the pairing straight); a
+background agent (`mode: "background"`) returns at once and is driven
+afterwards through `list_agents`, `read_agent`, and `write_agent`,
+whose follow-up turns appear under the same `agent_id` without a new
+lifecycle bracket; a `general-purpose` agent can delegate again, and
+the nested agent's `subagent.started` names its parent agent in
+`parentId`; and a custom agent from `.github/agents` runs as
+`agent_type: "<name>"` with a `subagent.selected` listing its tools.
+
+Two consequences for analysis:
+
+- **Parent-only numbers need an `agent_id` filter.** Unlike the other
+  harnesses, parsing the one transcript already includes the delegated
+  work: `stats` counts the subagent's tool calls in `tool_calls`, and
+  its model appears in `models`. Keep events whose `agent_id` is empty
+  for the parent's own behavior.
+- **Nothing to gather.** One session record covers the task, so the
+  discovery step the other harnesses need does not apply; `Meta`
+  never marks a Copilot transcript as a subagent's.
+
