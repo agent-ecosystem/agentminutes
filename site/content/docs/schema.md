@@ -106,11 +106,14 @@ field is set per event, matching its `kind`:
   [Harness Support](/docs/harnesses/#validation-coverage).
 - **`system.text` is the record's model-visible text, when it carries
   one.** Injected context surfaces as `text`, bare: the system prompt,
-  a CLAUDE.md body, a reminder, a delivered skill body, a listing. Any
-  wrapper the harness delivered it in (Claude Code's `<system-reminder>`,
-  Copilot's `<skill-context>`) stays in `details`, and `convert
-  --text-form delivered` (library: `Options.TextForm`) puts the wrapped
-  form in `text` instead, where the transcript records it. `text` is also where
+  a CLAUDE.md body, a reminder, a delivered skill body, a listing. The
+  tags of any wrapper the harness delivered it in (Claude Code's
+  `<system-reminder>`, Copilot's `<skill-context>`) stay in `details`,
+  while content the wrapper carries of its own (Copilot's names the
+  skill's base directory and lists the files under its directory) is in
+  `text`; `convert --text-form delivered` (library: `Options.TextForm`)
+  puts the wrapped form in `text` instead, where the transcript records
+  it. `text` is also where
   a diagnostic's message lands (an abort reason, an API error, a
   session notice), which the model never saw; `subtype` tells the two
   apart. What deliberately stays in `details` only is enumerated per

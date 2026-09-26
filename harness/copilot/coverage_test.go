@@ -77,21 +77,27 @@ func TestErrorsFixture(t *testing.T) {
 	}
 }
 
-// The skills fixture models a project skill invocation (skill.* records),
-// the sql tools, the documentation tool, a user-configured MCP server's
-// tool, and a --agent custom agent's subagent.selected on the main agent.
+// The skills fixture models a project skill activated twice across a
+// resume (skill.invoked with the body, then skill.invoked_ref by content
+// hash, each followed by its delivery record), the sql tools, the
+// documentation tool, a user-configured MCP server's tool, and a --agent
+// custom agent's subagent.selected on the main agent.
 func TestSkillsFixture(t *testing.T) {
 	s := accounted(t, "skills.jsonl")
 	st := s.Stats()
-	if st.ToolCalls != 6 || st.ToolErrors != 0 || st.UnansweredCalls != 0 {
+	if st.ToolCalls != 7 || st.ToolErrors != 0 || st.UnansweredCalls != 0 {
 		t.Errorf("stats = calls %d errors %d unanswered %d", st.ToolCalls, st.ToolErrors, st.UnansweredCalls)
 	}
 	for name, kind := range map[string]session.ToolKind{
 		"skill": session.ToolKindOther, "sql": session.ToolKindOther, "session_store_sql": session.ToolKindOther,
 		"fetch_copilot_cli_documentation": session.ToolKindOther, "everything-echo": session.ToolKindOther, "create": session.ToolKindEdit,
 	} {
-		if st.ToolCallsByName[name] != 1 {
-			t.Errorf("ToolCallsByName[%s] = %d, want 1", name, st.ToolCallsByName[name])
+		want := 1
+		if name == "skill" {
+			want = 2
+		}
+		if st.ToolCallsByName[name] != want {
+			t.Errorf("ToolCallsByName[%s] = %d, want %d", name, st.ToolCallsByName[name], want)
 		}
 		for _, ti := range s.ToolInteractions() {
 			if ti.Call.ToolCall.Name == name && ti.Call.ToolCall.Kind != kind {
@@ -99,7 +105,7 @@ func TestSkillsFixture(t *testing.T) {
 			}
 		}
 	}
-	for subtype, n := range map[string]int{"skill.invoked": 1, "skill.context_delivered_ref": 1, "subagent.selected": 1} {
+	for subtype, n := range map[string]int{"skill.invoked": 1, "skill.invoked_ref": 1, "skill.context_delivered_ref": 2, "subagent.selected": 1} {
 		if st.SystemBySubtype[subtype] != n {
 			t.Errorf("SystemBySubtype[%s] = %d, want %d", subtype, st.SystemBySubtype[subtype], n)
 		}
@@ -112,10 +118,14 @@ func TestSkillsFixture(t *testing.T) {
 			if !bytes.Contains(ev.System.Details, []byte("# Greeter")) {
 				t.Error("skill content must be preserved in details")
 			}
-			// The delivered body is the record's text: consumers tracing
-			// model-visible content read Text, not Details.
-			if !strings.HasPrefix(ev.System.Text, "# Greeter\n") || !strings.Contains(ev.System.Text, "reply with exactly: greeted") {
-				t.Errorf("skill.invoked text = %q, want the SKILL.md body", ev.System.Text)
+		}
+		if ev.Kind == session.KindSystem && (ev.System.Subtype == "skill.invoked" || ev.System.Subtype == "skill.invoked_ref") {
+			// The delivered body is the record's text (the ref's resolved
+			// from the earlier record by hash), with the wrapper's content
+			// lines ahead of it: consumers tracing model-visible content
+			// read Text, not Details.
+			if !strings.HasPrefix(ev.System.Text, "Base directory for this skill: ") || !strings.Contains(ev.System.Text, "\n# Greeter\n") || !strings.Contains(ev.System.Text, "reply with exactly: greeted") {
+				t.Errorf("%s text = %q, want the wrapper content and the SKILL.md body", ev.System.Subtype, ev.System.Text)
 			}
 		}
 	}

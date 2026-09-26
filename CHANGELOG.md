@@ -6,6 +6,34 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+### Added
+
+- Copilot CLI: a repeat activation of a skill whose body is unchanged,
+  which the harness logs by reference (`skill.invoked_ref`: content
+  hash and length, no body) and delivers again, is now a `system` event
+  whose `text` is the body resolved from the earlier `skill.invoked`
+  with that hash, in either text form, so the second delivery counts
+  and traces like the first. A ref no record in the transcript
+  resolves keeps an empty `text` with the ref fields in `details`
+  rather than being dropped. The record type joins the drift baseline
+  (regenerated over six further 1.0.88 transcripts). Reported in
+  issue #4.
+
+### Changed
+
+- Copilot CLI: a skill activation's bare `text` now carries the content
+  lines of the `<skill-context>` wrapper ahead of the SKILL.md body: the
+  skill's base directory and, when the skill directory holds other
+  files, the list of every file under it, which the harness composes
+  for the model and which was previously reachable only through
+  `--text-form delivered`. Only the wrapper's tag lines are left to the
+  delivered form, matching how Claude Code's `<system-reminder>` tags
+  are stripped. A consumer comparing the bare text to the body alone
+  sees the prefix now; the body is still the text's tail.
+- Copilot CLI: the delivery-marker test holds each
+  `skill.context_delivered_ref` to the activation event just before it,
+  in the parsed text form, instead of to any earlier skill body.
+
 ## [0.7.0] - 2026-09-25
 
 Schema `0.2.0`: the `details` of a Claude Code attachment system event

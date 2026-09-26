@@ -53,6 +53,7 @@ var recordTypes = map[string]bool{
 	"session.usage_checkpoint":    true,
 	"skill.context_delivered_ref": true,
 	"skill.invoked":               true,
+	"skill.invoked_ref":           true,
 	"subagent.completed":          true,
 	"subagent.configured":         true,
 	"subagent.selected":           true,

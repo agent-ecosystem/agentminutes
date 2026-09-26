@@ -44,7 +44,16 @@ delivery record with the body's SHA-256).
   for older records. Rendered wins over the fields because the fields
   do not always reconstruct the message (`deferred_tools_delta` renders
   two lists from two fields; `instructions` adds a per-file header) and
-  because it is drift-proof for attachment types not yet modeled.
+  because it is drift-proof for attachment types not yet modeled. For
+  Copilot this is the skill body inside the wrapper's content lines
+  with only the tag lines stripped: after `<skill-context name="...">`
+  the prefix states the skill's base directory and, when the skill
+  directory holds other files, lists every one of them (recursively,
+  unfiltered, files the body never mentions included), which is content
+  the harness composed for the model and the only record of a platform
+  behavior (resource enumeration) no other harness has. Stripping the
+  whole prefix, as the first version did, left a consumer on the
+  default form blind to it (issue #4).
 - **Delivered** (`harness.Options.TextForm = TextDelivered`, CLI
   `--text-form delivered`): the rendered block verbatim, or the skill
   body inside its recorded prefix and suffix. For experiments that must
@@ -54,9 +63,28 @@ delivery record with the body's SHA-256).
 This is an `Options` field rather than a `session.Transform`, unlike
 telemetry promotion (`plans/telemetry-promotion.md`): both forms are
 translations of the same record, nothing is synthesized or marked, and
-the Copilot form needs parser state (a one-record hold until the
-delivery record arrives), which a transform over the emitted stream
+the Copilot forms need parser state (a one-record hold until the
+delivery record arrives, in both forms now that the bare form takes
+the wrapper's content lines), which a transform over the emitted stream
 could only recover by buffering.
+
+## Repeat activations logged by reference
+
+Copilot logs a repeat activation of a skill whose body is unchanged as
+`skill.invoked_ref` (the `skill.invoked` fields with `contentId` and
+`contentLength` in place of `content`), followed by a fresh
+`skill.context_delivered_ref` hashing the same body. The harness
+delivered the body again; the transcript stores it by reference (an
+edited body between activations logs a full `skill.invoked`, so this
+is log deduplication by content hash, not delivery deduplication). The
+adapter keeps every `skill.invoked` body by its hash and resolves the
+ref to it, so the second activation is a `system` event with the same
+text as the first, in either form, and a consumer tracing a body phrase
+sees both deliveries. A ref no earlier record in the transcript resolves
+(a truncated copy) is still emitted, textless, with the ref fields in
+`Details`, so the delivery still counts. Verified against the
+agent-skill-implementation benchmark's reactivation transcript
+(1.0.88, 2026-09-25), which the copilot baseline now includes.
 
 Verified in the 2.1.274 bundle rather than inferred: the system prompt
 sections are joined by a blank line with empty sections and the
@@ -108,8 +136,12 @@ and a preview; the sidecar keeps 30 KB of stdout), an error with an
 
 Two per-harness **delivery-marker** checks have no length threshold,
 which the length rule needs: a Claude Code attachment with a rendered
-form must surface text; a Copilot delivery record's hash must match a
-surfaced skill body, bare or wrapped.
+form must surface text; a Copilot delivery record's hash must match
+the body inside the activation event just before it (`skill.invoked`
+or `skill.invoked_ref`), in the wrapper of the form being parsed. The
+check is per delivery, so a repeat delivery cannot pass on the
+strength of the first activation's text, which is how the unresolved
+`skill.invoked_ref` went unnoticed.
 
 Known limits, deliberately not closed: short injected text on a record
 with no delivery marker (the length rule cannot see it); the threshold

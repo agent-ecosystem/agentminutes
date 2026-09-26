@@ -27,8 +27,11 @@ var nonText = map[string]string{
 	"session.resume context.cwd":                                                 "a path",
 	"session.shutdown codeChanges.filesModified.[]":                              "paths",
 	"session.usage_checkpoint promptCacheBreakState.[].models.*.model_call_id":   "ids (one key per model name)",
-	"skill.context_delivered_ref prefix":                                         "the delivery wrapper around the skill.invoked body, which is that event's Text",
+	"skill.context_delivered_ref prefix":                                         "the delivery wrapper around a skill body; its content lines (base directory, related files) are in the preceding skill.invoked or skill.invoked_ref event's Text in both forms, its tag line in the delivered form",
+	"skill.invoked description":                                                  "the skill's listing description, which the system.message's <available_skills> block surfaces as that event's Text",
 	"skill.invoked path":                                                         "a path",
+	"skill.invoked_ref description":                                              "the skill's listing description, which the system.message's <available_skills> block surfaces as that event's Text",
+	"skill.invoked_ref path":                                                     "a path",
 	"tool_result/* result.binaryResultsForLlm.[].description":                    "the image descriptor, carried on the result's image block",
 	"tool_result/* result.detailedContent":                                       "the UI's detailed rendering (a diff, a numbered file, an agent's transcript); the model receives result.content",
 	"tool_result/* toolTelemetry.restrictedProperties.filePaths":                 "paths",
@@ -38,20 +41,24 @@ var nonText = map[string]string{
 
 // deliveryInvariant is the harness's own delivery marker as a check: a
 // skill.context_delivered_ref names, by SHA-256, the content it wrapped
-// and delivered, so some earlier skill.invoked event must surface text
-// that hashes to it (bare, or wrapped in that record's prefix and suffix
-// in the delivered form). It has no threshold and does not depend on
-// which record carries the body.
-func deliveryInvariant(t *testing.T, name string, events []session.Event) {
+// and delivered, so the activation event just before it (skill.invoked,
+// or skill.invoked_ref resolved to the earlier body) must surface text
+// that is that content inside the record's wrapper in the parsed form:
+// the wrapper's content lines around the body in the bare form, the
+// prefix and suffix verbatim in the delivered form. It has no threshold,
+// and it holds every delivery to its own activation event, so a repeat
+// delivery cannot pass on the strength of the first.
+func deliveryInvariant(t *testing.T, name string, events []session.Event, form harness.TextForm) {
 	t.Helper()
-	var bodies []string
-	for _, ev := range events {
+	var last *session.Event
+	for i := range events {
+		ev := &events[i]
 		if ev.Kind != session.KindSystem {
 			continue
 		}
 		switch ev.System.Subtype {
-		case "skill.invoked":
-			bodies = append(bodies, ev.System.Text)
+		case "skill.invoked", "skill.invoked_ref":
+			last = ev
 		case "skill.context_delivered_ref":
 			var ref struct {
 				ContentID string `json:"contentId"`
@@ -61,17 +68,19 @@ func deliveryInvariant(t *testing.T, name string, events []session.Event) {
 			if json.Unmarshal(ev.System.Details, &ref) != nil || ref.ContentID == "" {
 				continue
 			}
-			found := false
-			for _, b := range bodies {
-				bare := strings.TrimSuffix(strings.TrimPrefix(b, ref.Prefix), ref.Suffix)
-				if contentHash(bare) == ref.ContentID {
-					found = true
-					break
-				}
+			if last == nil {
+				t.Errorf("%s: skill.context_delivered_ref (line %d) has no activation event before it", name, ev.Provenance.Line)
+				continue
 			}
-			if !found {
-				t.Errorf("%s: skill.context_delivered_ref (line %d) names content %s that no skill.invoked event's text hashes to", name, ev.Provenance.Line, ref.ContentID)
+			// The wrapper in this form, split where the body goes.
+			prefix, suffix, _ := strings.Cut(skillText(ref.Prefix, "\x00", ref.Suffix, form), "\x00")
+			text := last.System.Text
+			body, okp := strings.CutPrefix(text, prefix)
+			body, oks := strings.CutSuffix(body, suffix)
+			if !okp || !oks || contentHash(body) != ref.ContentID {
+				t.Errorf("%s: skill.context_delivered_ref (line %d) names content %s, but the %s event before it (line %d) does not surface that content in its wrapper (%s form): text = %q", name, ev.Provenance.Line, ref.ContentID, last.System.Subtype, last.Provenance.Line, form, text)
 			}
+			last = nil
 		}
 	}
 }
@@ -95,7 +104,7 @@ func TestFixturesTextAudit(t *testing.T) {
 			}
 			label := name + " (" + form.String() + ")"
 			textaudit.Invariant(t, label, s.Events, nonText)
-			deliveryInvariant(t, label, s.Events)
+			deliveryInvariant(t, label, s.Events, form)
 		}
 	}
 }

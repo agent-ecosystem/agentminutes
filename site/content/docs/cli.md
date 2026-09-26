@@ -125,7 +125,10 @@ The last line is the stderr summary; it stays out of your pipe.
   wrapper around a loaded skill. The default, `bare`, is the record's
   own text without the framing, which is what phrase tracing and
   cross-harness comparison want; `delivered` is for experiments that
-  must reproduce what the model saw byte for byte. Records with no
+  must reproduce what the model saw byte for byte. Framing means the
+  tag lines only: content a wrapper carries of its own (Copilot's
+  `<skill-context>` states the skill's base directory and lists the
+  files under its directory) stays in the bare text. Records with no
   recorded delivered form keep their bare text either way.
 - `--promote codex:web-search` / `--promote codex:patch-apply` (also on
   `stats`) opt into a telemetry promotion; see

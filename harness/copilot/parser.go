@@ -172,13 +172,20 @@ func (b *binaryResult) UnmarshalJSON(data []byte) error {
 type parser struct {
 	parseutil.Emitter
 	meta bool
-	// pendingSkill holds a skill.invoked event back until the next record
-	// (delivered text form only): when that record is the
+	// pendingSkill holds a skill.invoked or skill.invoked_ref event back
+	// until the next record: when that record is the
 	// skill.context_delivered_ref whose contentId hashes the body, the
-	// event's Text becomes prefix + body + suffix, the wrapper the
-	// harness reports delivering; otherwise it goes out bare.
+	// event's Text takes in the wrapper the harness reports delivering
+	// (its content lines in the bare form, tags included in the
+	// delivered form; see skillText); otherwise it goes out as the body
+	// alone.
 	pendingSkill        *session.Event
 	pendingSkillContent string
+	// skillBodies maps a delivered SKILL.md body's contentId
+	// ("sha256:...") to the body, from every skill.invoked seen, so a
+	// later skill.invoked_ref (the same content activated again) resolves
+	// to the text the harness delivered.
+	skillBodies map[string]string
 	// toolNames maps tool call IDs to tool names, for denormalizing
 	// results. Populated from assistant.message toolRequests (the call)
 	// and tool.execution_start (so an orphan result still names its tool).
@@ -189,8 +196,9 @@ type parser struct {
 func (Adapter) Events(r io.Reader, opts harness.Options) iter.Seq2[session.Event, error] {
 	return func(yield func(session.Event, error) bool) {
 		p := &parser{
-			Emitter:   parseutil.Emitter{Harness: harness.Copilot, Opts: opts, Yield: yield},
-			toolNames: make(map[string]string),
+			Emitter:     parseutil.Emitter{Harness: harness.Copilot, Opts: opts, Yield: yield},
+			toolNames:   make(map[string]string),
+			skillBodies: make(map[string]string),
 		}
 		sc := parseutil.NewLineScanner(r)
 		for sc.Scan() {
@@ -276,23 +284,39 @@ func (p *parser) record(data []byte) bool {
 		// The SKILL.md body the skill tool delivered (frontmatter
 		// stripped). The following skill.context_delivered_ref hashes
 		// exactly this content and records the <skill-context> wrapper
-		// it was delivered in; the wrapper stays in that record's
-		// details. The role the model received it in is not recorded,
-		// so this stays a system event with the body as its text rather
-		// than a synthesized user_message (Claude Code's vehicle).
+		// it was delivered in, whose content lines (the skill's base
+		// directory, the files under its directory) join the body in
+		// this event's text once that record arrives. The role the model
+		// received it in is not recorded, so this stays a system event
+		// with the body as its text rather than a synthesized
+		// user_message (Claude Code's vehicle).
 		var si struct {
 			Content string `json:"content"`
 		}
 		if err := json.Unmarshal(rec.Data, &si); err != nil {
 			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed skill.invoked: %v", err))
 		}
-		if p.Opts.TextForm == harness.TextDelivered && si.Content != "" {
-			ev := p.systemEvent(&rec, data, si.Content)
-			p.pendingSkill = &ev
-			p.pendingSkillContent = si.Content
-			return true
+		if si.Content != "" {
+			p.skillBodies[contentHash(si.Content)] = si.Content
 		}
-		return p.system(&rec, data, si.Content)
+		return p.holdSkill(&rec, data, si.Content)
+	case "skill.invoked_ref":
+		// The same skill activated again with its body unchanged: the
+		// harness delivers the body again (a fresh
+		// skill.context_delivered_ref follows, hashing the same content)
+		// but logs it by reference, contentId and contentLength in place
+		// of content. The body is the earlier skill.invoked's with that
+		// hash, in this transcript; an edited body logs a full
+		// skill.invoked instead. A ref no earlier record resolves (a
+		// truncated transcript) still counts as a delivery, with empty
+		// text and the ref fields in details.
+		var sr struct {
+			ContentID string `json:"contentId"`
+		}
+		if err := json.Unmarshal(rec.Data, &sr); err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed skill.invoked_ref: %v", err))
+		}
+		return p.holdSkill(&rec, data, p.skillBodies[sr.ContentID])
 	}
 	if recordTypes[rec.Type] || isTelemetryType(rec.Type) {
 		// Turn boundaries, permission prompts, usage checkpoints, shutdown
@@ -549,11 +573,26 @@ func resultContent(raw json.RawMessage) []session.ContentBlock {
 	return []session.ContentBlock{{Kind: session.ContentOther, Raw: parseutil.CloneRaw(raw)}}
 }
 
-// flushSkill emits a held skill.invoked event ahead of the record that
+// holdSkill emits a skill activation record as a system event with body
+// as its text, held one record so the delivery record that follows it
+// can contribute the wrapper (flushSkill). An activation with no body to
+// deliver (an unresolved ref) goes out at once.
+func (p *parser) holdSkill(rec *envelope, data []byte, body string) bool {
+	if body == "" {
+		return p.system(rec, data, "")
+	}
+	ev := p.systemEvent(rec, data, body)
+	p.pendingSkill = &ev
+	p.pendingSkillContent = body
+	return true
+}
+
+// flushSkill emits a held skill activation event ahead of the record that
 // follows it (nil at end of input). When next is the delivery record for
 // that body (skill.context_delivered_ref whose contentId is the body's
-// SHA-256), the text goes out wrapped in the recorded prefix and suffix;
-// any other next record, a hash mismatch, or end of input sends it bare.
+// SHA-256), the text takes in the recorded prefix and suffix per
+// skillText; any other next record, a hash mismatch, or end of input
+// sends the body alone.
 func (p *parser) flushSkill(next *envelope) bool {
 	ev := p.pendingSkill
 	if ev == nil {
@@ -567,11 +606,40 @@ func (p *parser) flushSkill(next *envelope) bool {
 			Suffix    string `json:"suffix"`
 		}
 		if json.Unmarshal(next.Data, &ref) == nil && ref.ContentID == contentHash(p.pendingSkillContent) {
-			ev.System.Text = ref.Prefix + p.pendingSkillContent + ref.Suffix
+			ev.System.Text = skillText(ref.Prefix, p.pendingSkillContent, ref.Suffix, p.Opts.TextForm)
 		}
 	}
 	return p.Emit(*ev)
 }
+
+// skillText is a delivered skill's text in the given form. The wrapper
+// the delivery record names is more than tags: after the opening
+// <skill-context name="..."> line, prefix states the skill's base
+// directory and, when the skill directory holds other files, lists every
+// one of them (recursively, unfiltered), which is content the harness
+// composed for the model. The delivered form is prefix + body + suffix
+// verbatim; the bare form keeps those content lines and strips only the
+// tag lines, as the Claude Code adapter strips <system-reminder>. A
+// wrapper without the expected tags is kept whole rather than guessed at.
+func skillText(prefix, body, suffix string, form harness.TextForm) string {
+	if form == harness.TextDelivered {
+		return prefix + body + suffix
+	}
+	if strings.HasPrefix(prefix, skillContextOpen) {
+		if _, rest, ok := strings.Cut(prefix, ">\n"); ok {
+			prefix = rest
+		}
+	}
+	if rest, ok := strings.CutSuffix(suffix, "\n"+skillContextClose); ok {
+		suffix = rest
+	}
+	return prefix + body + suffix
+}
+
+const (
+	skillContextOpen  = "<skill-context"
+	skillContextClose = "</skill-context>"
+)
 
 // contentHash is the skill.context_delivered_ref contentId form of a body.
 func contentHash(content string) string {

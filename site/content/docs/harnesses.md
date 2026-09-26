@@ -81,6 +81,20 @@ Every built-in tool registered on 1.0.88 was exercised, including
 failures: a tool that could not run, and a shell command that exited
 nonzero, both parse as failed results.
 
+A Copilot CLI skill activation becomes a `system` event of subtype
+`skill.invoked` whose `text` is what the harness delivered: the
+skill's base directory, a list of every file under the skill
+directory when it holds any (the model learns of bundled files the
+SKILL.md never mentions), and the SKILL.md body, with the
+`<skill-context>` tag lines left to `--text-form delivered`. Activating
+the same skill again with its body unchanged is logged by reference
+(`skill.invoked_ref`, a content hash in place of the body) and
+delivered again; the adapter resolves the hash to the earlier body, so
+the second activation carries the same `text` as the first. The
+delivery record that follows each activation (`skill.context_delivered_ref`)
+stays textless; a test holds each one to the activation before it by
+that hash.
+
 ## Format drift
 
 When a transcript was written by a harness release newer than the last

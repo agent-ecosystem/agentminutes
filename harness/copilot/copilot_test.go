@@ -578,7 +578,7 @@ func TestLocalTranscripts(t *testing.T) {
 			t.Errorf("%s: %d lines not covered by any event or skip (first: line %d)", path, len(un), un[0])
 		}
 		textaudit.Invariant(t, path, s.Events, nonText)
-		deliveryInvariant(t, path, s.Events)
+		deliveryInvariant(t, path, s.Events, harness.TextBare)
 	}
 	t.Logf("parsed %d transcripts: %d events", len(paths), events)
 }

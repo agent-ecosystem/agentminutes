@@ -65,8 +65,11 @@ type TextForm int
 const (
 	// TextBare is the default: a system event's Text is the record's own
 	// text (a system prompt, a reminder, a skill body) without the
-	// framing the harness wrapped it in on delivery. Phrase tracing and
-	// cross-harness comparison want this form.
+	// framing the harness wrapped it in on delivery. Framing means the
+	// tag lines: where a wrapper carries content of its own (Copilot's
+	// <skill-context> states the skill's base directory and lists the
+	// files under its directory), that content stays in the bare text.
+	// Phrase tracing and cross-harness comparison want this form.
 	TextBare TextForm = iota
 
 	// TextDelivered makes Text the text as the harness records delivering

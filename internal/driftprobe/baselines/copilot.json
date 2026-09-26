@@ -349,6 +349,27 @@
         ]
       }
     },
+    "skill.invoked_ref": {
+      "keys": [
+        "data",
+        "data.allowedTools",
+        "data.contentId",
+        "data.contentLength",
+        "data.description",
+        "data.invokedAtTurn",
+        "data.model",
+        "data.name",
+        "data.path",
+        "data.pluginName",
+        "data.pluginVersion",
+        "data.source",
+        "data.trigger",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
     "subagent.completed": {
       "keys": [
         "agentId",
