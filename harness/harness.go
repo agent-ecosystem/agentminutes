@@ -51,6 +51,54 @@ type Options struct {
 	// and native record type. Parse wires this into the session report;
 	// streaming consumers who care about skip accounting set it themselves.
 	OnSkip func(line int, recordType string)
+
+	// TextForm selects which text a system event's Text carries when the
+	// transcript records both the text a record carries and the form the
+	// harness delivered it in. The default, TextBare, is the record's
+	// text without delivery framing.
+	TextForm TextForm
+}
+
+// TextForm is the Options.TextForm choice.
+type TextForm int
+
+const (
+	// TextBare is the default: a system event's Text is the record's own
+	// text (a system prompt, a reminder, a skill body) without the
+	// framing the harness wrapped it in on delivery. Phrase tracing and
+	// cross-harness comparison want this form.
+	TextBare TextForm = iota
+
+	// TextDelivered makes Text the text as the harness records delivering
+	// it to the model, framing included, wherever the transcript records
+	// that form: Claude Code attachments' rendered <system-reminder>
+	// blocks (2.1.267+), and Copilot's skill body inside the
+	// <skill-context> wrapper its delivery record names. Records with no
+	// recorded delivered form keep their bare text. Experiments that must
+	// reproduce what the model saw byte for byte want this form.
+	TextDelivered
+)
+
+// String returns the flag spelling ("bare", "delivered").
+func (f TextForm) String() string {
+	switch f {
+	case TextBare:
+		return "bare"
+	case TextDelivered:
+		return "delivered"
+	}
+	return fmt.Sprintf("TextForm(%d)", int(f))
+}
+
+// ParseTextForm maps a flag spelling onto a TextForm.
+func ParseTextForm(s string) (TextForm, error) {
+	switch s {
+	case "bare":
+		return TextBare, nil
+	case "delivered":
+		return TextDelivered, nil
+	}
+	return TextBare, fmt.Errorf("unknown text form %q (want bare or delivered)", s)
 }
 
 // SniffSize is how much of a transcript head format detection may inspect:

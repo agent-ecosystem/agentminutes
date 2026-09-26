@@ -23,6 +23,7 @@ AGENTMINUTES_LOCAL_TRANSCRIPTS=~/.claude/projects go test ./acp/ -run TestLocalL
 ## Non-negotiables
 
 - Never silently drop input: every line becomes an event, a counted skip, or a loud `*harness.ParseError` (harness, version, line). Line-accounting tests enforce this.
+- Never bury model-visible text: a `system` event's `Text` is the record's model-visible text when it carries one (system prompt, injected reminder, delivered skill body), bare, with any delivery wrapper left in `Details` (`Options.TextForm = TextDelivered` selects the wrapped form where the transcript records it). A tool result's model-visible text is its content, with the sidecar in `Enrichment`. Text that deliberately stays in `Details` or `Enrichment` is enumerated with a reason in the adapter's `nonText` map; `internal/textaudit` (length rule, containment rule) and the per-harness delivery-marker checks enforce this over fixtures and the local corpus. Design record: `plans/model-visible-text.md`.
 - The JSON encoding of `session.Session`/`session.Event` is the cross-language contract; schema changes need `schema:"acp|otel|ext"` tags (reflection-test enforced), `Event.Validate` updates, and a `SchemaVersion` review.
 - Harness lists (constants, registry, flag help, README table) stay alphabetical.
 - Keep fixtures synthetic (no vendor system prompts, no personal data) and LF-only (`.gitattributes` handles this; don't fight it).
@@ -60,7 +61,7 @@ Docs that move with the code:
 
 - `content/docs/cli.md`: every example is captured real output. The
   convert/stats/sessions examples come from a minimal claude-code
-  session (harness 2.1.236, `agentminutes_schema` "0.1.0"); the
+  session (harness 2.1.236, `agentminutes_schema` "0.2.0"); the
   promotion example runs `harness/codex/testdata/rollout.jsonl` with
   and without `--promote codex:patch-apply`. When output shapes,
   SchemaVersion, or stats fields change, re-run the commands and
@@ -72,6 +73,19 @@ Docs that move with the code:
   derived `totals.total_prompt_tokens` (landed for issues #1/#2); it
   moves together with `example-comparison.md`'s token bullet (they
   document the same trap from two angles).
+- `content/docs/cli.md`'s `--text-form` bullet, `content/docs/library.md`'s
+  `harness.Options` paragraph, and `content/docs/schema.md`'s
+  "`system.text` is the record's model-visible text" bullet move with
+  `harness.Options` (`TextForm`) and `session.SystemEvent.Text`
+  semantics; `schema.md` also states the schema revision inline, so it
+  moves with `session.SchemaVersion` (as README's mention does, test
+  enforced). `content/docs/harnesses.md`'s validation paragraph and
+  `content/docs/design.md`'s "model-visible text" bullet describe the
+  `internal/textaudit` invariants and the per-adapter delivery-marker
+  checks; they move with those tests. The Claude Code and Codex
+  paragraphs in `harnesses.md` describe attachment `details`/`text`
+  and the `session_meta/base_instructions` event and move with those
+  adapters.
 - `content/docs/token-comparison.md`: the cross-harness token field
   guide. It restates the per-provider `input_tokens` conventions, the
   `total_prompt_tokens` derivation, and the usage-source table (which

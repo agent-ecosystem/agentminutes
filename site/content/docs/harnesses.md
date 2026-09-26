@@ -17,9 +17,15 @@ weight: 700
 
 ## Validation coverage
 
-Adapters are validated against real transcripts with a mechanical
-line-accounting check. Every source line becomes an event, a counted skip,
-or an error.
+Adapters are validated against real transcripts with two mechanical
+checks. Line accounting: every source line becomes an event, a counted
+skip, or an error. Text surfacing: every long string an event keeps in
+its `details` or `enrichment` is either accounted for by the event's
+`text` or content, or listed by the adapter with the reason it is not
+model-visible text, and where a harness records that it delivered text
+(Claude Code's rendered reminders, Copilot CLI's skill delivery hash)
+the adapter is held to that record. See the
+[schema page](/docs/schema/) for what `text` promises.
 
 Every adapter was exercised against the same set of failing calls (a
 command that exits nonzero, a read of an absent path, an edit whose
@@ -33,6 +39,24 @@ line, which the adapter reads, and other failures with an `error` key.
 The 404 is where they part: flagged on Copilot CLI and Antigravity,
 unflagged on Claude Code (the status lands in `fetch.status_code`), and
 indistinguishable from success on Codex.
+
+Two Claude Code details worth knowing. An attachment record (the
+harness's injected context: instructions, reminders, listings) becomes
+a `system` event whose `details` is the whole record and whose `text`
+is the injected message, taken from the record's rendered
+`<system-reminder>` block on 2.1.267 and later and from the
+attachment's own field before that. A prompt the user typed while the
+model was working is delivered the same way, so it is a `system` event
+too, with its authorship in `details`; user-message counts follow the
+harness's turn structure. A background task's notification carries
+two renderings, and the adapter picks the one the harness sent by the
+same position rule the harness uses.
+
+One Codex detail: the system prompt travels in the `session_meta`
+record, which becomes the `session_meta` event, so the adapter also
+emits it as a `system` event of subtype `session_meta/base_instructions`
+on the same line, with the prompt as `text`. Every Codex session has
+one more `system` event than its record count suggests.
 
 Two Antigravity caveats worth knowing: its transcripts carry no token
 usage, and its tool calls have no correlation IDs (the adapter

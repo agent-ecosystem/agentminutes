@@ -24,6 +24,16 @@ if err != nil {
 fmt.Println(s.Meta.HarnessVersion, len(s.Events), s.Totals.OutputTokens)
 ```
 
+`harness.Options` carries the per-parse choices: `Permissive` (preserve
+unclassifiable records as `unknown` events instead of failing),
+`KeepRaw` (retain native records in provenance), `MaxPayloadBytes`
+(replace oversized tool results with a placeholder), `HarnessVersionHint`
+(for formats that record no version), `OnSkip` (a callback per skipped
+record), and `TextForm` (`TextBare`, the default, or `TextDelivered`,
+which puts injected text in a `system` event's `Text` as the harness
+delivered it, wrapper included, where the transcript records that form;
+the CLI's `--text-form`).
+
 To join tool calls with their results, in call order:
 
 ```go

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"strings"
 	"time"
 
 	"github.com/agent-ecosystem/agentminutes/harness"
@@ -16,22 +17,48 @@ import (
 
 // record is the top-level envelope of one transcript line.
 type record struct {
-	Type          string          `json:"type"`
-	UUID          string          `json:"uuid"`
-	ParentUUID    string          `json:"parentUuid"`
-	Timestamp     string          `json:"timestamp"`
-	SessionID     string          `json:"sessionId"`
-	Version       string          `json:"version"`
-	CWD           string          `json:"cwd"`
-	GitBranch     string          `json:"gitBranch"`
-	IsSidechain   bool            `json:"isSidechain"`
-	AgentID       string          `json:"agentId"`
-	IsMeta        bool            `json:"isMeta"`
-	Subtype       string          `json:"subtype"`
-	Level         string          `json:"level"`
-	Content       json.RawMessage `json:"content"`
-	Message       json.RawMessage `json:"message"`
-	Attachment    json.RawMessage `json:"attachment"`
+	Type        string          `json:"type"`
+	UUID        string          `json:"uuid"`
+	ParentUUID  string          `json:"parentUuid"`
+	Timestamp   string          `json:"timestamp"`
+	SessionID   string          `json:"sessionId"`
+	Version     string          `json:"version"`
+	CWD         string          `json:"cwd"`
+	GitBranch   string          `json:"gitBranch"`
+	IsSidechain bool            `json:"isSidechain"`
+	AgentID     string          `json:"agentId"`
+	IsMeta      bool            `json:"isMeta"`
+	Subtype     string          `json:"subtype"`
+	Level       string          `json:"level"`
+	Content     json.RawMessage `json:"content"`
+	Message     json.RawMessage `json:"message"`
+	Attachment  json.RawMessage `json:"attachment"`
+	// Rendered is the attachment as delivered to the model (2.1.267+):
+	// each entry's content is a <system-reminder> block, the injected
+	// user-turn text. For attachments whose object holds only structured
+	// fields (environment, session_context, auto_mode, date, ...), it is
+	// the only record of the text the model saw.
+	Rendered []struct {
+		Content string `json:"content"`
+	} `json:"rendered"`
+	// RenderedInHumanTurn (queued_command task notifications, 2.1.267+)
+	// is the rendering used when the notification is delivered in the
+	// human's turn (right after the user's prompt) rather than mid-turn
+	// (after a tool result); recorded only when it differs from Rendered.
+	// The harness picks between them by position: its predicate walks
+	// back to the nearest conversational record and uses this form when
+	// that record is a human prompt (2.1.274 bundle, oNe/eXo). The
+	// parser tracks the same state, so which form the model saw is
+	// determined, not guessed.
+	RenderedInHumanTurn []struct {
+		Content string `json:"content"`
+	} `json:"renderedInHumanTurn"`
+	// IsCompactSummary marks a compaction summary user record, which the
+	// harness does not count as a human turn.
+	IsCompactSummary bool `json:"isCompactSummary"`
+	Origin           *struct {
+		Kind string `json:"kind"`
+	} `json:"origin"`
 	ToolUseResult json.RawMessage `json:"toolUseResult"`
 	IsAPIError    bool            `json:"isApiErrorMessage"`
 }
@@ -91,6 +118,11 @@ type parser struct {
 	// its fold closed is schema drift and must fail loudly, because the
 	// second fold would duplicate the message's accounting anchor.
 	closedMIDs map[string]bool
+	// inHumanTurn is true while the nearest conversational record so far
+	// is a human prompt (not a tool result, a meta record, an assistant
+	// message, or a compaction summary); it selects a queued_command
+	// task notification's rendering.
+	inHumanTurn bool
 }
 
 // Events implements harness.Adapter.
@@ -199,6 +231,9 @@ func (p *parser) user(rec *record, data []byte) bool {
 		}
 		content = append(content, toContentBlock(b))
 	}
+	if emittedResults {
+		p.inHumanTurn = false
+	}
 	if len(content) == 0 && emittedResults {
 		// The record's line is accounted for by its tool_result events.
 		return true
@@ -208,6 +243,13 @@ func (p *parser) user(rec *record, data []byte) bool {
 	origin := session.OriginHuman
 	if rec.IsMeta {
 		origin = session.OriginHarness
+	}
+	// A meta record whose only content is a one-line bracketed marker
+	// ("[Request interrupted by user]") leaves the turn state alone, as
+	// the harness's predicate does; any other meta record, and a
+	// compaction summary, ends the human turn.
+	if !rec.IsMeta || !isTurnMarker(blocks) {
+		p.inHumanTurn = !rec.IsMeta && !rec.IsCompactSummary && (rec.Origin == nil || rec.Origin.Kind == "human")
 	}
 	return p.Emit(session.Event{
 		Kind:        session.KindUserMessage,
@@ -248,6 +290,7 @@ func (p *parser) toolResult(rec *record, b *block, data []byte) bool {
 }
 
 func (p *parser) assistant(rec *record, data []byte) bool {
+	p.inHumanTurn = false
 	var msg apiMessage
 	if len(rec.Message) == 0 {
 		return p.UnknownOrFail(rec.Type, data, "assistant record has no message")
@@ -454,20 +497,49 @@ func (p *parser) costState(_ *record, data []byte) bool {
 	})
 }
 
+// attachment is the model-visible part of an attachment record, for
+// records without a rendered form. Which key carries the text varies by
+// type: content on the older types (task_reminder, skill_listing,
+// hook_success), text on the 2.1.27x reminders (model,
+// total_tokens_reminder, batching_reminder_sent, silent_turn_reminder),
+// and a type-specific field on the rest.
+type attachment struct {
+	Type    string          `json:"type"`
+	Content json.RawMessage `json:"content"`
+	Text    json.RawMessage `json:"text"`
+	// SystemPrompt is prompt_snapshot's system prompt, one section per
+	// element, with a __SYSTEM_PROMPT_DYNAMIC_BOUNDARY__ sentinel between
+	// the cached and the per-turn sections.
+	SystemPrompt []string `json:"systemPrompt"`
+	// Files is instructions' CLAUDE.md set (path, type, content).
+	Files []struct {
+		Content string `json:"content"`
+	} `json:"files"`
+	// Prompt is queued_command's delivered prompt: a string, or content
+	// blocks when it carries a pasted image. commandMode "prompt" with
+	// origin.kind "human" is text the user typed while the model was
+	// working; "task-notification" is a background task's report. The
+	// corpus shows the attachment is the only record of the text (30 of
+	// 31 never reappear as a user record).
+	Prompt json.RawMessage `json:"prompt"`
+	// Snippet is edited_text_file's numbered excerpt; Banner is
+	// read_truncation_notice's notice.
+	Snippet string `json:"snippet"`
+	Banner  string `json:"banner"`
+	// AddedLines are the listing lines agent_listing_delta and
+	// deferred_tools_delta inject; AddedBlocks the instruction blocks of
+	// mcp_instructions_delta.
+	AddedLines  []string `json:"addedLines"`
+	AddedBlocks []string `json:"addedBlocks"`
+}
+
 func (p *parser) attachment(rec *record, data []byte) bool {
 	if len(rec.Attachment) == 0 {
 		return p.UnknownOrFail(rec.Type, data, "attachment record has no attachment")
 	}
-	var att struct {
-		Type    string          `json:"type"`
-		Content json.RawMessage `json:"content"`
-	}
+	var att attachment
 	if err := json.Unmarshal(rec.Attachment, &att); err != nil {
 		return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed attachment: %v", err))
-	}
-	var text string
-	if len(att.Content) > 0 {
-		_ = json.Unmarshal(att.Content, &text)
 	}
 	return p.Emit(session.Event{
 		Kind:       session.KindSystem,
@@ -477,10 +549,142 @@ func (p *parser) attachment(rec *record, data []byte) bool {
 		Provenance: p.Prov(data),
 		System: &session.SystemEvent{
 			Subtype: "attachment/" + att.Type,
-			Text:    text,
-			Details: rec.Attachment,
+			Text:    p.attachmentText(&att, rec),
+			// The whole record, as for system records: the envelope's
+			// rendered[].content (the delivered form) rides along.
+			Details: parseutil.CloneRaw(data),
 		},
 	})
+}
+
+// attachmentText returns the attachment's model-visible text. When the
+// record carries its rendered form (2.1.267+), that is the text: verbatim
+// in the delivered form, with the <system-reminder> tags stripped in the
+// bare form. The rendered block is the injected message itself, and the
+// attachment's own fields do not always reconstruct it (deferred_tools_delta
+// renders two lists from two fields; instructions adds a per-file header),
+// so the fields are the fallback for records without it: content, text,
+// or the type's own field. Types with neither (deferred_tools_record,
+// prompt_render_point, ...) yield "".
+func (p *parser) attachmentText(att *attachment, rec *record) string {
+	rendered := rec.Rendered
+	if att.Type == "queued_command" && p.inHumanTurn && len(rec.RenderedInHumanTurn) > 0 {
+		rendered = rec.RenderedInHumanTurn
+	}
+	if len(rendered) > 0 {
+		if p.Opts.TextForm == harness.TextDelivered {
+			return joinRendered(rendered, func(s string) string { return s })
+		}
+		if s := joinRendered(rendered, stripReminder); s != "" {
+			return s
+		}
+	}
+	return bareAttachmentText(att)
+}
+
+// joinRendered joins rendered entries with a blank line. Each entry is
+// one injected message; through 2.1.274 every attachment renderer emits
+// at most one text message (the one two-message renderer, directory,
+// emits a tool pair the harness does not record as rendered), so the
+// join is defined but has no observed multi-entry case.
+func joinRendered(rendered []struct {
+	Content string `json:"content"`
+}, form func(string) string,
+) string {
+	var parts []string
+	for _, r := range rendered {
+		if s := form(r.Content); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// isTurnMarker reports whether blocks are a single one-line bracketed
+// text such as "[Request interrupted by user]": the harness skips these
+// meta records when deciding whether a queued notification sits in the
+// human's turn.
+func isTurnMarker(blocks []block) bool {
+	if len(blocks) == 0 {
+		return false
+	}
+	for _, b := range blocks {
+		if b.Type != "text" || !strings.HasPrefix(b.Text, "[") || !strings.HasSuffix(b.Text, "]") || strings.Contains(b.Text, "\n") {
+			return false
+		}
+	}
+	return true
+}
+
+// stripReminder removes the <system-reminder> wrapper around a rendered
+// attachment; content without the wrapper is returned unchanged.
+func stripReminder(s string) string {
+	if body, ok := strings.CutPrefix(s, "<system-reminder>\n"); ok {
+		if body, ok := strings.CutSuffix(body, "\n</system-reminder>"); ok {
+			return body
+		}
+	}
+	return s
+}
+
+func bareAttachmentText(att *attachment) string {
+	var s string
+	if len(att.Content) > 0 && json.Unmarshal(att.Content, &s) == nil && s != "" {
+		return s
+	}
+	if len(att.Text) > 0 && json.Unmarshal(att.Text, &s) == nil && s != "" {
+		return s
+	}
+	switch att.Type {
+	case "prompt_snapshot":
+		return joinPromptSections(att.SystemPrompt)
+	case "instructions":
+		parts := make([]string, 0, len(att.Files))
+		for _, f := range att.Files {
+			if f.Content != "" {
+				parts = append(parts, f.Content)
+			}
+		}
+		return strings.Join(parts, "\n\n")
+	case "queued_command":
+		if len(att.Prompt) == 0 {
+			return ""
+		}
+		blocks, err := parseBlocks(att.Prompt)
+		if err != nil {
+			return ""
+		}
+		return blocksPlainText(blocks)
+	case "edited_text_file":
+		return att.Snippet
+	case "read_truncation_notice":
+		return att.Banner
+	case "agent_listing_delta", "deferred_tools_delta":
+		return strings.Join(att.AddedLines, "\n")
+	case "mcp_instructions_delta":
+		return strings.Join(att.AddedBlocks, "\n\n")
+	}
+	return ""
+}
+
+// promptBoundary separates the cached from the per-turn sections of a
+// prompt_snapshot's systemPrompt; a harness marker, not prompt text.
+const promptBoundary = "__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__"
+
+// joinPromptSections concatenates a prompt_snapshot's sections the way the
+// harness builds the API's system blocks (verified in the 2.1.274 bundle):
+// empty sections and the boundary sentinel are skipped and the rest are
+// joined with a blank line. The harness hoists its identity block ahead
+// of the others and splits at the boundary into separately cached
+// blocks, so this is the prompt's text, not its exact block layout.
+func joinPromptSections(sections []string) string {
+	var parts []string
+	for _, s := range sections {
+		if s != "" && s != promptBoundary {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 // parseBlocks decodes API message content, which is either a bare string

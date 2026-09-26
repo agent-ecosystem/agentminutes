@@ -25,7 +25,7 @@ the event list trimmed:
 
 ```json
 {
-  "agentminutes_schema": "0.1.0",
+  "agentminutes_schema": "0.2.0",
   "meta": {
     "harness": "claude-code",
     "harness_version": "2.1.236",
@@ -118,6 +118,15 @@ The last line is the stderr summary; it stays out of your pipe.
   provenance.
 - `--max-payload-bytes N` replaces tool-result payloads larger than N
   with size-and-digest placeholders.
+- `--text-form delivered` makes a `system` event's `text` the text as
+  the harness records delivering it to the model, wrapper included,
+  where the transcript records that form: Claude Code's rendered
+  `<system-reminder>` blocks (2.1.267+) and Copilot's `<skill-context>`
+  wrapper around a loaded skill. The default, `bare`, is the record's
+  own text without the framing, which is what phrase tracing and
+  cross-harness comparison want; `delivered` is for experiments that
+  must reproduce what the model saw byte for byte. Records with no
+  recorded delivered form keep their bare text either way.
 - `--promote codex:web-search` / `--promote codex:patch-apply` (also on
   `stats`) opt into a telemetry promotion; see
   [Telemetry promotions](#telemetry-promotions) below.

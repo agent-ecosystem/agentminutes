@@ -3,6 +3,8 @@ package copilot
 import (
 	"bytes"
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -170,6 +172,13 @@ func (b *binaryResult) UnmarshalJSON(data []byte) error {
 type parser struct {
 	parseutil.Emitter
 	meta bool
+	// pendingSkill holds a skill.invoked event back until the next record
+	// (delivered text form only): when that record is the
+	// skill.context_delivered_ref whose contentId hashes the body, the
+	// event's Text becomes prefix + body + suffix, the wrapper the
+	// harness reports delivering; otherwise it goes out bare.
+	pendingSkill        *session.Event
+	pendingSkillContent string
 	// toolNames maps tool call IDs to tool names, for denormalizing
 	// results. Populated from assistant.message toolRequests (the call)
 	// and tool.execution_start (so an orphan result still names its tool).
@@ -193,14 +202,22 @@ func (Adapter) Events(r io.Reader, opts harness.Options) iter.Seq2[session.Event
 		if err := sc.Err(); err != nil {
 			p.Line = sc.Line()
 			p.Fail("reading transcript", err)
+			return
 		}
+		p.flushSkill(nil)
 	}
 }
 
 func (p *parser) record(data []byte) bool {
 	var rec envelope
 	if err := json.Unmarshal(data, &rec); err != nil {
+		if !p.flushSkill(nil) {
+			return false
+		}
 		return p.UnknownOrFail("", data, fmt.Sprintf("invalid JSON: %v", err))
+	}
+	if !p.flushSkill(&rec) {
+		return false
 	}
 	if !p.meta {
 		if !p.emitMeta(&rec, data) {
@@ -268,6 +285,12 @@ func (p *parser) record(data []byte) bool {
 		}
 		if err := json.Unmarshal(rec.Data, &si); err != nil {
 			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed skill.invoked: %v", err))
+		}
+		if p.Opts.TextForm == harness.TextDelivered && si.Content != "" {
+			ev := p.systemEvent(&rec, data, si.Content)
+			p.pendingSkill = &ev
+			p.pendingSkillContent = si.Content
+			return true
 		}
 		return p.system(&rec, data, si.Content)
 	}
@@ -526,10 +549,44 @@ func resultContent(raw json.RawMessage) []session.ContentBlock {
 	return []session.ContentBlock{{Kind: session.ContentOther, Raw: parseutil.CloneRaw(raw)}}
 }
 
+// flushSkill emits a held skill.invoked event ahead of the record that
+// follows it (nil at end of input). When next is the delivery record for
+// that body (skill.context_delivered_ref whose contentId is the body's
+// SHA-256), the text goes out wrapped in the recorded prefix and suffix;
+// any other next record, a hash mismatch, or end of input sends it bare.
+func (p *parser) flushSkill(next *envelope) bool {
+	ev := p.pendingSkill
+	if ev == nil {
+		return true
+	}
+	p.pendingSkill = nil
+	if next != nil && next.Type == "skill.context_delivered_ref" {
+		var ref struct {
+			ContentID string `json:"contentId"`
+			Prefix    string `json:"prefix"`
+			Suffix    string `json:"suffix"`
+		}
+		if json.Unmarshal(next.Data, &ref) == nil && ref.ContentID == contentHash(p.pendingSkillContent) {
+			ev.System.Text = ref.Prefix + p.pendingSkillContent + ref.Suffix
+		}
+	}
+	return p.Emit(*ev)
+}
+
+// contentHash is the skill.context_delivered_ref contentId form of a body.
+func contentHash(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
 // system preserves a record as a system event: the native type is the
 // subtype and data rides verbatim in Details.
 func (p *parser) system(rec *envelope, data []byte, text string) bool {
-	return p.Emit(session.Event{
+	return p.Emit(p.systemEvent(rec, data, text))
+}
+
+func (p *parser) systemEvent(rec *envelope, data []byte, text string) session.Event {
+	return session.Event{
 		Kind:       session.KindSystem,
 		Timestamp:  parseutil.ParseTime(rec.Timestamp),
 		ID:         rec.ID,
@@ -541,5 +598,5 @@ func (p *parser) system(rec *envelope, data []byte, text string) bool {
 			Text:    text,
 			Details: parseutil.CloneRaw(rec.Data),
 		},
-	})
+	}
 }

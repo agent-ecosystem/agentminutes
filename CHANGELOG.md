@@ -6,6 +6,35 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+Schema `0.2.0`: the `details` of a Claude Code attachment system event
+changes shape (below), and Codex sessions gain a system event.
+
+### Added
+
+- Codex: the system prompt (`session_meta.base_instructions.text`) is
+  now a `system` event of subtype `session_meta/base_instructions`, on
+  the meta record's line with the prompt as `text`, matching how the
+  Copilot CLI and Antigravity adapters surface their system prompt
+  records. Sessions gain one system event; `stats.system_by_subtype`
+  shows it.
+- `convert --text-form delivered` (library: `harness.Options.TextForm`)
+  puts the delivered form of injected text in a system event's `text`,
+  wrapper included, where the transcript records it: Claude Code's
+  rendered `<system-reminder>` blocks and Copilot's `<skill-context>`
+  wrapper (the body is paired with its delivery record by the SHA-256
+  that record carries). The default stays bare.
+- A text-surfacing invariant for adapter tests (`internal/textaudit`):
+  a `system` event or tool result whose details (enrichment) carry a
+  long string either surfaces it (its text contains or is contained by
+  the string) or is on the adapter's enumerated non-text list with a
+  reason, and where a harness records that it delivered text (Claude
+  Code's rendered attachments, Copilot's skill delivery hash) a
+  threshold-free check holds the adapter to that record. Runs over every
+  fixture in both text forms and, env-gated, the local corpus, so a
+  harness release that adds or moves injected text, or a result whose
+  sidecar carries text its content does not, fails loudly instead of
+  being absorbed.
+
 ### Fixed
 
 - Copilot CLI: `skill.invoked` system events now carry the delivered
@@ -13,6 +42,34 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
   trace model-visible text see a skill load as harness-injected content
   rather than only at model output (#3). The body is byte-exact what the
   harness's `skill.context_delivered_ref` hashes as delivered.
+- Claude Code: attachments that carry their injected text under `text`
+  (`model`, `total_tokens_reminder`, `batching_reminder_sent`,
+  `silent_turn_reminder`, 2.1.27x) now surface it as the system event's
+  `text`; only `content` was read before. `prompt_snapshot` surfaces
+  the system prompt (its sections joined by a blank line, as the
+  harness sends them, without the dynamic boundary sentinel); `instructions` the CLAUDE.md bodies;
+  `queued_command` the queued prompt or task notification;
+  `edited_text_file` the snippet; `read_truncation_notice` the banner;
+  and the agent, tool, and MCP-instruction deltas their added lines.
+  When a record carries its rendered form, the `<system-reminder>`
+  block as injected (2.1.267+), that is the text with the tags
+  stripped: the fields do not always reconstruct the injected message
+  (`deferred_tools_delta` renders two lists from two fields), and for
+  the structured attachments (`environment`, `session_context`,
+  `auto_mode`, `date`, `remote_session_change`,
+  `bash_output_audience_note`) it is the only record of the text at
+  all. The fields remain the fallback for older records. A task
+  notification's two renderings (mid-turn and in the human's turn) are
+  chosen by position with the harness's own predicate.
+
+### Changed
+
+- Claude Code: an attachment system event's `details` is now the whole
+  record, as it already was for `system` records, rather than the
+  attachment object alone. Consumers reading attachment fields from
+  `details` find them under `attachment.<key>`; the envelope's
+  `rendered[].content` (2.1.274+, the `<system-reminder>` wrapper as
+  delivered) is now preserved.
 
 ## [0.6.0] - 2026-09-25
 

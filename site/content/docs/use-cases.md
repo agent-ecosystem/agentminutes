@@ -27,7 +27,12 @@ This is how the
 benchmark works: the same probe skills run on every harness, and every
 finding about platform behavior cites a transcript rather than trusting
 the model's self-reporting about its own context. The transcript is what
-makes a claim like "this harness never loaded the skill" checkable.
+makes a claim like "this harness never loaded the skill" checkable: the
+skill body a harness delivered is model-visible text in the normalized
+stream (a harness-origin user message on Claude Code, a `system`
+event's `text` on Copilot CLI, a tool result where the model read the
+file itself), so the phrase either appears before the model's reply
+or it does not.
 
 ## Measure what the model actually saw
 

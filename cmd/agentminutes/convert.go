@@ -59,6 +59,7 @@ func newConvertCmd() *cobra.Command {
 		output     string
 		keepRaw    bool
 		maxPayload int64
+		textForm   string
 	)
 	cmd := &cobra.Command{
 		Use:   "convert <transcript>",
@@ -75,6 +76,10 @@ Pass "-" as the transcript to read from stdin.`,
 				// Validated before any -o file is created or truncated.
 				return fmt.Errorf("unknown format %q (want json or jsonl)", format)
 			}
+			tf, err := harness.ParseTextForm(textForm)
+			if err != nil {
+				return err
+			}
 			adapter, br, transforms, cleanup, err := pf.resolve(cmd, args[0])
 			if err != nil {
 				return err
@@ -85,6 +90,7 @@ Pass "-" as the transcript to read from stdin.`,
 				KeepRaw:            keepRaw,
 				MaxPayloadBytes:    maxPayload,
 				HarnessVersionHint: pf.harnessVersion,
+				TextForm:           tf,
 			}
 			return withOutput(output, cmd.OutOrStdout(), func(out io.Writer) error {
 				return convert(adapter, br, out, cmd.ErrOrStderr(), format, opts, transforms)
@@ -96,6 +102,7 @@ Pass "-" as the transcript to read from stdin.`,
 	cmd.Flags().StringVarP(&output, "output", "o", "", "write to a file instead of stdout")
 	cmd.Flags().BoolVar(&keepRaw, "keep-raw", false, "retain verbatim source records in event provenance")
 	cmd.Flags().Int64Var(&maxPayload, "max-payload-bytes", 0, "replace tool-result payloads larger than this with size+digest placeholders (0 = keep whole)")
+	cmd.Flags().StringVar(&textForm, "text-form", "bare", "system event text: bare (the record's text) or delivered (as the harness records delivering it, wrapper included, where recorded)")
 	return cmd
 }
 

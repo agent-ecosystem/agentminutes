@@ -11,6 +11,7 @@ import (
 
 	"github.com/agent-ecosystem/agentminutes/harness"
 	"github.com/agent-ecosystem/agentminutes/internal/parseutil"
+	"github.com/agent-ecosystem/agentminutes/internal/textaudit"
 	"github.com/agent-ecosystem/agentminutes/session"
 )
 
@@ -32,6 +33,7 @@ func TestFixtureEventSequence(t *testing.T) {
 
 	want := []session.EventKind{
 		session.KindSessionMeta,      // L1
+		session.KindSystem,           // session_meta/base_instructions, L1
 		session.KindSystem,           // task_started, L2
 		session.KindSystem,           // message/developer, L3
 		session.KindUserMessage,      // environment_context (harness), L4
@@ -336,6 +338,7 @@ func TestLocalTranscripts(t *testing.T) {
 		if un := parseutil.UncoveredLines(data, s.Events, skips); len(un) > 0 {
 			t.Errorf("%s: %d lines not covered by any event or skip (first: line %d)", path, len(un), un[0])
 		}
+		textaudit.Invariant(t, path, s.Events, nonText)
 	}
 	t.Logf("parsed %d transcripts: %d events, %d skipped records", len(paths), events, skipped)
 }

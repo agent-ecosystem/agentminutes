@@ -25,6 +25,9 @@ type rolloutLine struct {
 // sessionMeta is the payload of a session_meta record. Field presence
 // varies by version: 0.118 has id only, 0.144 adds session_id.
 type sessionMeta struct {
+	// BaseInstructions is the system prompt as sent ({provenance, text}).
+	BaseInstructions json.RawMessage `json:"base_instructions"`
+
 	SessionID  string `json:"session_id"`
 	ID         string `json:"id"`
 	CWD        string `json:"cwd"`
@@ -145,8 +148,14 @@ func (p *parser) record(data []byte) bool {
 		}
 	} else if rec.Type == "session_meta" {
 		// A later session_meta (resumed/forked session?) is preserved as
-		// telemetry rather than re-emitted as meta.
-		return p.system(&rec, data, "session_meta", "", "")
+		// telemetry rather than re-emitted as meta; its base instructions
+		// surface the same way as the first record's.
+		if !p.system(&rec, data, "session_meta", "", "") {
+			return false
+		}
+		var sm sessionMeta
+		_ = json.Unmarshal(rec.Payload, &sm)
+		return p.baseInstructions(&rec, sm.BaseInstructions)
 	}
 
 	switch rec.Type {
@@ -183,6 +192,7 @@ func (p *parser) record(data []byte) bool {
 func (p *parser) emitMeta(rec *rolloutLine, data []byte) bool {
 	p.meta = true
 	m := &session.Meta{Harness: string(harness.Codex)}
+	var baseInstructions json.RawMessage
 	if rec.Type == "session_meta" {
 		var sm sessionMeta
 		if err := json.Unmarshal(rec.Payload, &sm); err != nil {
@@ -215,13 +225,44 @@ func (p *parser) emitMeta(rec *rolloutLine, data []byte) bool {
 		m.CWD = sm.CWD
 		m.GitBranch = sm.Git.Branch
 		p.Version = sm.CLIVersion
+		baseInstructions = sm.BaseInstructions
 	}
 	m.HarnessVersion = cmp.Or(p.Version, p.Opts.HarnessVersionHint)
-	return p.Emit(session.Event{
+	if !p.Emit(session.Event{
 		Kind:        session.KindSessionMeta,
 		Timestamp:   parseutil.ParseTime(rec.Timestamp),
 		Provenance:  p.Prov(data),
 		SessionMeta: m,
+	}) {
+		return false
+	}
+	return p.baseInstructions(rec, baseInstructions)
+}
+
+// baseInstructions emits the system prompt a session_meta record carries
+// as a system event sharing the record's line: the prompt is model-visible
+// text, and session_meta has no place for it (the other adapters surface
+// their harness's system prompt record the same way). Details is the
+// record's payload verbatim, as for every system event. The event shares
+// the line but not the raw record: the meta event (or the session_meta
+// system event) already retains it under KeepRaw. Nothing is emitted when
+// the record carries none.
+func (p *parser) baseInstructions(rec *rolloutLine, raw json.RawMessage) bool {
+	var bi struct {
+		Text string `json:"text"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &bi) != nil || bi.Text == "" {
+		return true
+	}
+	return p.Emit(session.Event{
+		Kind:       session.KindSystem,
+		Timestamp:  parseutil.ParseTime(rec.Timestamp),
+		Provenance: &session.Provenance{Line: p.Line, EndLine: p.Line},
+		System: &session.SystemEvent{
+			Subtype: "session_meta/base_instructions",
+			Text:    bi.Text,
+			Details: rec.Payload,
+		},
 	})
 }
 

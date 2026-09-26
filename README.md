@@ -19,7 +19,7 @@ agentminutes takes the minutes.**
 ## Status
 
 Early development, pre-release. The normalized schema is versioned
-(currently `0.1.0`) and appears in every output record; expect it to
+(currently `0.2.0`) and appears in every output record; expect it to
 evolve until 1.0.
 
 | Harness | Status | Native format |

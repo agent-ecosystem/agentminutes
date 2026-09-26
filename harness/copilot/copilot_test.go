@@ -11,6 +11,7 @@ import (
 
 	"github.com/agent-ecosystem/agentminutes/harness"
 	"github.com/agent-ecosystem/agentminutes/internal/parseutil"
+	"github.com/agent-ecosystem/agentminutes/internal/textaudit"
 	"github.com/agent-ecosystem/agentminutes/session"
 )
 
@@ -576,6 +577,8 @@ func TestLocalTranscripts(t *testing.T) {
 		if un := parseutil.UncoveredLines(data, s.Events, skips); len(un) > 0 {
 			t.Errorf("%s: %d lines not covered by any event or skip (first: line %d)", path, len(un), un[0])
 		}
+		textaudit.Invariant(t, path, s.Events, nonText)
+		deliveryInvariant(t, path, s.Events)
 	}
 	t.Logf("parsed %d transcripts: %d events", len(paths), events)
 }

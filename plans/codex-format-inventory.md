@@ -15,7 +15,7 @@ Source: four local rollout transcripts under `~/.codex/sessions/`: one older des
 
 | type | Role | Disposition |
 | --- | --- | --- |
-| `session_meta` | Session identity: `session_id`/`id`, `cwd`, `cli_version`, `originator`, `source`, `git{}`, base instructions | First one feeds `session_meta`; later ones (resume?) become `system` events |
+| `session_meta` | Session identity: `session_id`/`id`, `cwd`, `cli_version`, `originator`, `source`, `git{}`, base instructions | First one feeds `session_meta`; later ones (resume?) become `system` events. Either way `base_instructions.text` (the system prompt as sent) is a `system` event of subtype `session_meta/base_instructions` on the same line, text as `Text`, so the prompt is model-visible text as on the other harnesses |
 | `response_item` | The conversation: Responses API items exactly as the model saw/produced them | Canonical source of message/thinking/tool events |
 | `event_msg` | Harness telemetry: turn boundaries, token counts, patch results, echoes of messages | `system` events, except duplicates (skip list) and `token_count` (also feeds usage) |
 | `turn_context` | Per-turn config: `model`, sandbox/approval policy, cwd | `system` event; also the only source of the model name |

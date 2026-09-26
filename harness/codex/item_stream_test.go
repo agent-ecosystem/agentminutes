@@ -36,6 +36,7 @@ func TestItemStreamFixtureEventSequence(t *testing.T) {
 
 	want := []session.EventKind{
 		session.KindSessionMeta,      // L1
+		session.KindSystem,           // session_meta/base_instructions, L1
 		session.KindSystem,           // task_started, L2
 		session.KindSystem,           // turn_context, L3
 		session.KindUserMessage,      // human prompt, L4

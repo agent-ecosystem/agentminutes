@@ -16,7 +16,7 @@ field is set per event, matching its `kind`:
 | `thinking` | Extended-thinking block | `agent_thought_chunk` |
 | `tool_call` | Tool invocation with full input | `tool_call` |
 | `tool_result` | Tool outcome, correlated by tool call ID | `tool_call_update` |
-| `system` | Harness/API activity: injected context, diagnostics, errors | none (extension) |
+| `system` | Harness/API activity: injected context (its model-visible text in `text`), diagnostics, errors | none (extension) |
 | `unknown` | Unclassifiable record, preserved verbatim (permissive mode only) | none (extension) |
 
 ## Points worth knowing
@@ -82,7 +82,12 @@ field is set per event, matching its `kind`:
   with retrieval metrics promoted to `fetch` (URL, raw bytes fetched,
   status, duration) when present. For summarizing pipelines like Claude
   Code's WebFetch, comparing `fetch.raw_bytes` against the content size
-  measures the pipeline's compression directly. An image the model saw
+  measures the pipeline's compression directly. Which field the model
+  saw is a per-tool decision the adapters pin with a test: every long
+  string in `enrichment` that the content does not account for is
+  listed with its reason (the raw file behind a numbered rendering, a
+  UI diff, the call's own input, output the harness persisted instead
+  of showing). An image the model saw
   is an `image` content block holding the harness's own descriptor:
   the bytes inline for Claude Code, a path beside the transcript for
   Antigravity, and a reference to a separate asset record for Copilot
@@ -99,6 +104,19 @@ field is set per event, matching its `kind`:
   successful one. `stats.tool_errors` inherits these conventions, so a
   cross-harness error rate needs the fetch calls separated out; see
   [Harness Support](/docs/harnesses/#validation-coverage).
+- **`system.text` is the record's model-visible text, when it carries
+  one.** Injected context surfaces as `text`, bare: the system prompt,
+  a CLAUDE.md body, a reminder, a delivered skill body, a listing. Any
+  wrapper the harness delivered it in (Claude Code's `<system-reminder>`,
+  Copilot's `<skill-context>`) stays in `details`, and `convert
+  --text-form delivered` (library: `Options.TextForm`) puts the wrapped
+  form in `text` instead, where the transcript records it. `text` is also where
+  a diagnostic's message lands (an abort reason, an API error, a
+  session notice), which the model never saw; `subtype` tells the two
+  apart. What deliberately stays in `details` only is enumerated per
+  adapter with a reason (bytes, paths, tool schemas, echoes of text
+  surfaced by another event), and a test holds each adapter to that
+  list over its fixtures and the local corpus.
 - **Every event points back at its source.** `provenance` carries the
   1-based line range in the native transcript, and optionally the
   verbatim records (`--keep-raw`).
@@ -108,7 +126,8 @@ field is set per event, matching its `kind`:
   every input line is accounted for.
 
 The JSON encoding of `Session` and `Event` is the cross-language output
-contract; the `agentminutes_schema` field identifies its revision.
+contract; the `agentminutes_schema` field identifies its revision
+(currently `0.2.0`).
 The Go types in
 [`session`](https://github.com/agent-ecosystem/agentminutes/tree/main/session)
 are documentation for it.

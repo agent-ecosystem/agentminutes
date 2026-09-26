@@ -61,6 +61,12 @@ Round five (2026-07-31, agentsummons 0.3.0 dependency bump + drift probe): probe
 
 Round six (2026-08-02, agentsummons v0.3.1 dependency bump + drift probe): probed antigravity 1.1.10 (claude-code 2.1.212 and codex 0.146.0 unchanged, version-gated skip). Clean: all five probes exercised and parsed, vocabulary unchanged, baseline re-stamped to 1.1.10 (the regeneration diff was version-stamp-only, so item 8's corpus-rotation trap did not bite this round). The invocation-side finding lives in agentsummons 0.3.1: agy 1.1.9 print mode expands slash commands and skills in the prompt, which is a prompt-content trap for probe runners, though none of our fixed probes start with `/`.
 
+## Findings from the second consumer (skillxp)
+
+1. **Delivered skill bodies and other injected text were buried in `Details`** (**resolved**; issue #3). The Copilot adapter kept `skill.invoked`'s body out of `Text`; the audit that followed found the same on Claude Code and Codex. Resolved across all three, with the `Text` contract, the bare/delivered option, the queued-prompt decision, the text-surfacing invariants, and the schema bump recorded in `plans/model-visible-text.md`. Open on the skillxp side once this ships: drop the Copilot evidence caveat in its profile and harness-lore page, bump the dependency gate, and expect new harness-injected text on Claude Code (the system prompt, CLAUDE.md bodies, reminders with their rendered headers) and Codex (the system prompt) in its traces.
+2. **Antigravity subagent probe check races the subagent's transcript** (open). The probe reported the subagent join inconclusive twice in a run where the join succeeds on the same transcript afterwards: the check runs before the sibling conversation's file is written. A short retry-with-delay on that check, or checking after all probes finish, would close it.
+3. **Probe-captured docs are re-capturable after all** (note). The kept transcripts of every probe run persist under the system temp directory until the OS clears it, so the "Four harnesses, three tasks" tables were re-captured from a fresh run this time but could have been re-run from the originals; `CLAUDE.md` says the kept transcripts are not retained, which is true only eventually.
+
 ## Context for the format-drift infra session
 
 Decision recorded in DEVELOPMENT.md ("Harness format versioning"): parse by shape, not by version; union parsers plus version-stamped fixtures, no version-dispatched parsing and no behavior-changing version flag. The infra ideas below should build on that.

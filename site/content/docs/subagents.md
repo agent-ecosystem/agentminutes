@@ -40,7 +40,7 @@ Trimmed output for a real one-delegation session (Claude Code 2.1.274):
 
 ```json
 {
-  "agentminutes_schema": "0.1.0",
+  "agentminutes_schema": "0.2.0",
   "harness": "claude-code",
   "session_id": "f6f82cf7-af5c-45d5-9931-d07ea3cf0d92",
   "join": "layout",

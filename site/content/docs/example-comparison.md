@@ -65,11 +65,11 @@ nothing.
 | | Claude Code | Codex CLI |
 | --- | --- | --- |
 | Final answer | `done` | `done` |
-| Events | 10 | 25 |
+| Events | 10 | 26 |
 | Tool calls | 1 (`Write`, kind `edit`) | 3 (`exec`, kind `execute`) |
 | File edit visible as | tool call | `patch_apply_end` telemetry |
 | Tool time | 7 ms | 196 ms |
-| Injected `system` events | 3 | 12 |
+| Injected `system` events | 3 | 13 |
 | Harness-origin user messages | 0 | 1 |
 | `totals.input_tokens`, as recorded | 4 | 46,480 |
 | Cache read tokens | 36,963 | 34,589 |
@@ -109,6 +109,7 @@ The trimmed `stats` fields behind the interesting rows:
   "system_by_subtype": {
     "message/developer": 3,
     "patch_apply_end": 1,
+    "session_meta/base_instructions": 1,
     "task_complete": 1,
     "task_started": 1,
     "token_count": 4,
@@ -137,8 +138,8 @@ The trimmed `stats` fields behind the interesting rows:
   [telemetry promotions](/docs/cli/#telemetry-promotions) exist for.
 - **Context injection has a per-harness profile.** Claude Code injected
   three attachments (skill listing, agent listing, deferred tools).
-  Codex injected twelve system events, including three developer
-  messages and a world-state snapshot, plus one harness-origin user
+  Codex injected thirteen system events, including the system prompt,
+  three developer messages and a world-state snapshot, plus one harness-origin user
   message that the `origin` marker keeps separate from the human's
   prompt. Whatever "the model saw" means for your analysis, it differed
   before the first token of the reply.
@@ -183,16 +184,16 @@ on those transcripts.
 
 | | Antigravity | Claude Code | Codex | Copilot |
 | --- | --- | --- | --- | --- |
-| Events | 8 | 29 | 24 | 18 |
-| Tool calls | 1 (`write_to_file`, `edit`) | 1 (`Write`, `edit`) | 1 (`exec`, `execute`) | 1 (`create`, `edit`) |
+| Events | 11 | 29 | 25 | 17 |
+| Tool calls | 2 (`view_file`, `read`; `write_to_file`, `edit`) | 1 (`Write`, `edit`) | 1 (`exec`, `execute`) | 1 (`create`, `edit`) |
 | File edit visible as | tool call | tool call | `FileChange` telemetry | tool call |
-| Injected `system` events | 1 | 23 | 16 | 12 |
+| Injected `system` events | 1 | 23 | 17 | 10 |
 | Harness-origin user messages | 0 | 0 | 1 | 0 |
-| `totals.total_prompt_tokens` | absent | 43,572 | 25,182 | absent |
-| Output tokens | absent | 195 | 168 | absent |
-| API calls | 2 | 2 | 2 | 2 |
-| Tool time | 4.0 s | 1.07 s | 87 ms | 6 ms |
-| Wall time | 4.0 s | 7.2 s | 9.8 s | 5.5 s |
+| `totals.total_prompt_tokens` | absent | 43,559 | 25,142 | absent |
+| Output tokens | absent | 184 | 141 | absent |
+| API calls | 3 | 2 | 2 | 2 |
+| Tool time | 7.0 s | 596 ms | 73 ms | 10 ms |
+| Wall time | 7.0 s | 6.5 s | 5.3 s | 4.5 s |
 
 Three things the two-harness table could not show:
 
@@ -207,8 +208,9 @@ Three things the two-harness table could not show:
   `patch_apply_end` event, and `--promote codex:patch-apply` still
   recovers it as an `apply_patch` call of kind `edit`.
 - **Antigravity's tool time is whole seconds.** Its records carry
-  second-resolution timestamps, so a 4-second tool time on a
-  sub-second write says only that the write crossed a second boundary.
+  second-resolution timestamps, so the 7 seconds across its read and
+  its write (this run it looked before writing) count second boundaries
+  crossed, not the calls' own durations.
 
 ### A task that fails
 
@@ -246,11 +248,11 @@ genuinely disagree.
 | | Antigravity | Claude Code | Codex | Copilot |
 | --- | --- | --- | --- | --- |
 | Delegation call | `invoke_subagent` | `Agent` | `spawn_agent` + `wait_agent` | `task` |
-| Parent transcript events | 10 | 29 | 31 | 32 |
+| Parent transcript events | 10 | 29 | 32 | 32 |
 | Subagent's work lives in | a sibling conversation | `<session>/subagents/agent-*.jsonl` | a sibling rollout file | the same file, 16 of the 32 events stamped with its `agent_id` |
 | Subagent's own tool calls (in the parent) | 0 | 0 | 0 | 1 (`bash`) |
-| Parent `total_prompt_tokens` | absent | 43,732 | 37,914 | absent |
-| Subagent `total_prompt_tokens` | absent | 28,254 (its file) | 24,703 (its file) | absent |
+| Parent `total_prompt_tokens` | absent | 43,681 | 37,896 | absent |
+| Subagent `total_prompt_tokens` | absent | 28,039 (its file) | 24,819 (its file) | absent |
 | Models observed in the parent | 1 | 1 | 1 | 2 (`claude-sonnet-5`, `gpt-5.6-luna`) |
 
 The same delegation produces three storage layouts, and a plain
@@ -259,7 +261,7 @@ Codex it undercounts the task by a whole transcript (here about 40
 percent of the prompt tokens), and for Copilot it already includes the
 subagent's tool call and model. `stats --include-subagents` levels
 this: it gathers the subagent transcripts where they exist, reports
-the task aggregate (71,986 prompt tokens for Claude Code, 62,617 for
+the task aggregate (71,720 prompt tokens for Claude Code, 62,715 for
 Codex), and splits every task per agent, so the parent-only and
 task-scope numbers are both one field away on every harness.
 [Subagents](/docs/subagents/#task-summaries) walks the output.

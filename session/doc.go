@@ -21,4 +21,4 @@ package session
 
 // SchemaVersion identifies the revision of the normalized output schema.
 // It changes when the JSON encoding of Session or Event changes shape.
-const SchemaVersion = "0.1.0"
+const SchemaVersion = "0.2.0"

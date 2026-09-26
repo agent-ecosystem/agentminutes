@@ -152,6 +152,30 @@ func TestConvertPromote(t *testing.T) {
 	}
 }
 
+func TestConvertTextForm(t *testing.T) {
+	attachments := filepath.Join("..", "..", "harness", "claudecode", "testdata", "attachments.jsonl")
+	stdout, _, err := run(t, "convert", "--text-form", "delivered", attachments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s session.Session
+	if err := json.Unmarshal([]byte(stdout), &s); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ev := range s.Events {
+		if ev.Kind == session.KindSystem && ev.System.Subtype == "attachment/model" && strings.HasPrefix(ev.System.Text, "<system-reminder>") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("--text-form delivered: no rendered attachment text in output")
+	}
+	if _, _, err := run(t, "convert", "--text-form", "verbatim", attachments); err == nil {
+		t.Error("unknown text form: want error")
+	}
+}
+
 func TestDriftScanClean(t *testing.T) {
 	stdout, _, err := run(t, "drift", "scan", fixture)
 	if err != nil {
