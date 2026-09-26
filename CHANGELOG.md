@@ -6,6 +6,8 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-25
+
 Schema `0.2.0`: the `details` of a Claude Code attachment system event
 changes shape (below), and Codex sessions gain a system event.
 
@@ -393,7 +395,8 @@ changes shape (below), and Codex sessions gain a system event.
   line accounting, loud parse failures, and transcript discovery via
   per-harness locators.
 
-[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/agent-ecosystem/agentminutes/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/agent-ecosystem/agentminutes/compare/v0.5.0...v0.5.1
