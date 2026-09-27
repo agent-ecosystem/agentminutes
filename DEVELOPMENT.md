@@ -158,7 +158,17 @@ The local corpus test also runs the text audit (`internal/textaudit`) and the de
 
 Then the drift loop, once per probe round: `drift scan` over the local corpus names every key, type, and discriminator value the baseline has not seen (tool names, error codes, provider ids), which is the list of what to inventory or widen next; regenerate the baseline over the fixtures plus the corpus root when the round is reconciled (`TestScanFixturesClean` pins the fixtures against it, so an unregenerated baseline fails the suite). Finally `drift probe --harness <id> --force --keep`, which exercises the eight standard probes end to end and is the check that the search and subagent probes' tool names are right.
 
-Docs pages go through `site/check_prose_style`, `vale --config site/.vale.ini README.md`, and a `hugo` build before they are done.
+Docs pages go through `site/check_prose_style`, `vale --config site/.vale.ini README.md`, a `hugo` build, and `npm run test:agent-docs:local` from `site/` (`npm ci` there first) before they are done. CI runs that last one on every pull request touching `site/**`. After deploying with `site/build_and_sync`, run `npm run test:agent-docs` from `site/`, or dispatch the "Agent-Friendly Docs (live site)" workflow, to cover `content-negotiation` and `cache-header-hygiene`, which only the real server can answer.
+
+## Keeping afdocs current
+
+`site/package.json` pins the afdocs version; a new afdocs release usually adds checks, so bumping it can surface warns that were not there before. Bump with `npm install -D afdocs@latest` in `site/`, run `npm run test:agent-docs:local`, and fix what it reports before committing the lockfile. The afdocs migration guide for the release says which checks are new and how scores move.
+
+A warn does not fail the test, by design: the check ran and the site is usable, the result is just not the best one available. So read the per-check lines rather than the exit code alone. `npx afdocs check <url> --fixes` prints the fix advice for a single warn, and `--format scorecard` gives the weighted score the vitest output does not show.
+
+Three things in the site exist only to satisfy checks, and a theme or template change can quietly undo any of them. `layouts/partials/absolute-links.html` rewrites root-relative markdown link destinations to absolute ones, for `markdown-link-portability`; content keeps authoring `](/docs/...)`, and only the markdown output is rewritten. `layouts/docs/baseof.html` renders the sidebar nav after `</main>`, so page content leads the DOM, for `content-start-position`; the sidebar is `position: fixed` so the rendered page is unaffected, and the skip link above `<main>` keeps keyboard navigation reachable. `listDescTrunc` in `hugo.toml` is high enough that no docs-index card truncates a description the markdown carries in full, for `markdown-content-parity`; raise it again if a page description outgrows it.
+
+`.github/workflows/agent-docs.yml` pins the Hugo version so a Hugo release cannot fail a pull request that did not touch the site. Move it when the version on the machine that runs `site/build_and_sync` moves.
 
 ## Harness format versioning
 

@@ -2,6 +2,6 @@
 {{ with .Description }}
 > {{ . }}
 {{ end }}
-[Docs index](/llms.txt)
+[Docs index]({{ "llms.txt" | absURL }})
 
-{{ .RawContent }}
+{{ partial "absolute-links.html" .RawContent }}

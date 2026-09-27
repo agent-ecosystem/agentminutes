@@ -1,0 +1,13 @@
+{
+  "name": "agentminutes-site",
+  "private": true,
+  "description": "Tooling for the agentminutes.dev docs site. The site itself is Hugo; this is here so the afdocs version the checks run against is pinned and reproducible.",
+  "scripts": {
+    "test:agent-docs": "vitest run --reporter=verbose agent-docs.test.ts",
+    "test:agent-docs:local": "./check_agent_docs"
+  },
+  "devDependencies": {
+    "afdocs": "^0.22.1",
+    "vitest": "^4.1.11"
+  }
+}

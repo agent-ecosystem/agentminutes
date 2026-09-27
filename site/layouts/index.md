@@ -2,9 +2,9 @@
 {{ with .Site.Params.description }}
 > {{ . }}
 {{ end }}
-[Docs index](/llms.txt)
+[Docs index]({{ "llms.txt" | absURL }})
 
-{{ .RawContent }}
+{{ partial "absolute-links.html" .RawContent }}
 {{/* Landing page copy lives in data/landing.yaml; mirror the prose (hero
      subtitle, feature grid) so the markdown output has content parity with
      the rendered homepage. Buttons, badges, and other landing chrome are

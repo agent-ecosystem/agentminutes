@@ -1,0 +1,40 @@
+name: Agent-Friendly Docs (live site)
+
+# Runs the full check set against https://agentminutes.dev. This covers the two
+# checks the pull request workflow has to skip, because content negotiation and
+# cache headers come from Dreamhost's Apache config and exist only on the real
+# server.
+#
+# agentminutes.dev is deployed by hand with site/build_and_sync, so a release
+# does not mean the site has caught up. Treat a run as a report on whatever is
+# live at the time, and use workflow_dispatch after deploying.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  live-site:
+    name: agentminutes.dev
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+
+      # No AGENT_DOCS_URL: agent-docs.test.ts falls through to the production
+      # URL in site/agent-docs.config.yml and runs the full check set.
+      - name: Check the deployed docs site
+        run: npm run test:agent-docs
+        timeout-minutes: 10

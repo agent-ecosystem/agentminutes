@@ -40,14 +40,35 @@ AGENTMINUTES_LOCAL_TRANSCRIPTS=~/.claude/projects go test ./acp/ -run TestLocalL
 Hugo + Lotus Docs site for agentminutes.dev, instantiated from
 af-site-scaffold's template. Deploy with `site/build_and_sync` (rsync to
 Dreamhost); llms.txt and per-page markdown are Hugo output formats,
-regenerated on every build. Verify locally with
-`hugo server -p 1721` + `afdocs check http://localhost:1721` (never port
-1719/1720: Node's fetch blocks WHATWG bad-list ports and every check
-reports "fetch failed"; `content-negotiation` passes only on the live
-Apache site). The repo pre-commit hook runs `site/check_prose_style`
+regenerated on every build. The repo pre-commit hook runs `site/check_prose_style`
 (Vale, DC style: em dashes and "not X, but Y" constructions are errors).
 README.md is outside the hook's scope; lint it with
 `vale --config site/.vale.ini README.md`.
+
+Agent-friendliness is checked with afdocs, pinned in `site/package.json`
+(`npm ci` in `site/` before the first run). Both runs go through
+`site/agent-docs.test.ts`, a vitest case per check:
+`npm run test:agent-docs:local` runs `site/check_agent_docs`, which serves
+this working tree with `hugo server` on port 1721 and passes the URL in
+`AGENT_DOCS_URL`, and is what `.github/workflows/agent-docs.yml` runs on
+every pull request touching `site/**`; `npm run test:agent-docs` checks
+agentminutes.dev and is what `agent-docs-live.yml` runs on release or
+dispatch. The local run skips `content-negotiation` and
+`cache-header-hygiene`, which measure Dreamhost's Apache config that no
+local server has; everything else comes from `agent-docs.config.yml`, so
+there is no second config to keep in sync. Never move the port to 1719 or
+1720: Node's fetch blocks the WHATWG bad-list ports and every check
+reports "fetch failed". A warn does not fail the build, so read the
+per-check lines; `npx afdocs check <url> --fixes` explains one in detail.
+
+Three things in the site exist only to satisfy afdocs checks, so leave
+them in place: `layouts/partials/absolute-links.html` rewrites
+root-relative links to absolute ones in the markdown output
+(`markdown-link-portability`), `layouts/docs/baseof.html` renders the
+sidebar nav after `</main>` with a skip link, so page content leads the
+DOM (`content-start-position`), and `listDescTrunc` in `hugo.toml` is
+set high enough that no docs-index card truncates a description the
+markdown carries in full (`markdown-content-parity`).
 
 New documentation pages (any new file under `site/content/`) need the
 maintainer's review before they ship: write the page, lint and

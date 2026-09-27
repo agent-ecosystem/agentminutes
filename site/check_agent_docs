@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# Serve the site built from this working tree and run agent-docs.test.ts
+# against it, so a docs change is measured before it ships. Used by
+# .github/workflows/agent-docs.yml and runnable by hand:
+#
+#   npm ci && npm run test:agent-docs:local
+#
+# `hugo server` is what makes this a build check rather than a live one: it
+# serves with baseURL set to the localhost it is listening on, so llms.txt,
+# sitemap.xml, and the absolute links in the markdown output all resolve
+# against the build instead of production. That is why no canonicalOrigin is
+# needed here, and why there is one config file rather than two.
+#
+# --minify matches build_and_sync, so the size checks measure what Dreamhost
+# would serve. --disableLiveReload keeps Hugo from injecting its reload script,
+# which would otherwise show up as page boilerplate in every check.
+#
+# The URL goes to the test file in AGENT_DOCS_URL, which is also what tells it
+# to skip the two checks only the real server can answer; see agent-docs.test.ts.
+
+set -e
+cd "$(dirname "$0")"
+
+# Node's fetch refuses the WHATWG bad-list ports, which includes 1719 and 1720,
+# and every check then reports "fetch failed". 1721 is clear of that range.
+PORT="${PORT:-1721}"
+
+if [ ! -x node_modules/.bin/vitest ]; then
+  echo "error: dependencies are missing. Run 'npm ci' in $(pwd) first." >&2
+  exit 1
+fi
+
+LOG="$(mktemp)"
+SERVER_PID=""
+
+cleanup() {
+  if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
+  rm -f "$LOG"
+}
+trap cleanup EXIT INT TERM
+
+hugo server --port "$PORT" --minify --disableLiveReload --gc >"$LOG" 2>&1 &
+SERVER_PID=$!
+
+URL="http://localhost:$PORT"
+READY=""
+for _ in $(seq 1 60); do
+  if curl -sf "$URL/" -o /dev/null; then
+    READY=1
+    break
+  fi
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "error: hugo server exited before it was ready:" >&2
+    cat "$LOG" >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+if [ -z "$READY" ]; then
+  echo "error: hugo server did not answer on $URL within 60s:" >&2
+  cat "$LOG" >&2
+  exit 1
+fi
+
+echo "Serving the built site at $URL"
+AGENT_DOCS_URL="$URL" node_modules/.bin/vitest run --reporter=verbose agent-docs.test.ts "$@"

@@ -1,5 +1,12 @@
 # afdocs configuration (auto-discovered when afdocs runs from this directory).
 #
+# One config serves both runs. `npm run test:agent-docs` uses the url below;
+# ./check_agent_docs (npm run test:agent-docs:local) passes a localhost URL in
+# AGENT_DOCS_URL, which overrides it, and skips the two checks only the real
+# server can answer. Everything else below applies to both, so there is nothing
+# to keep in sync between a local and a live config.
+url: https://agentminutes.dev
+
 # The landing page hero's buttons, version badge, and license tagline are
 # navigation chrome, not content; agents get the same information from the
 # markdown homepage (docs index link, sections list) and llms.txt. Exclude

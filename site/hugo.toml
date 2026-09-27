@@ -108,7 +108,13 @@ disableKinds = ["taxonomy", "term"]
 
     navDesc         = true
     navDescTrunc    = 30
-    listDescTrunc   = 100
+    # High enough that no page description on the docs index is truncated. A
+    # truncated card reads "... and delegation …" while the markdown output
+    # carries the whole sentence, and afdocs' markdown-content-parity counts
+    # that as a segment the markdown is missing. Raising the limit keeps the
+    # two representations saying the same thing; the longest description today
+    # is 117 characters (docs/example-comparison.md).
+    listDescTrunc   = 140
 
     intLinkTooltip  = false
 

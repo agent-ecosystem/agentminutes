@@ -1,0 +1,51 @@
+name: Agent-Friendly Docs
+
+# Runs afdocs against the docs site built from the pull request, so a docs
+# change is measured before it ships to agentminutes.dev. The two checks that
+# depend on Dreamhost's Apache config are skipped here and covered by
+# agent-docs-live.yml instead; see site/check_agent_docs for which and why.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/agent-docs.yml'
+
+jobs:
+  built-site:
+    name: Built site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Hugo resolves the Lotus Docs and Bootstrap themes as Hugo modules,
+      # which is Go's module machinery underneath, so Go has to be on PATH
+      # before Hugo runs.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: site/go.mod
+
+      # Pinned rather than 'latest' so a Hugo release cannot fail a pull
+      # request that did not touch the site. Moves with the version on the
+      # machine that runs site/build_and_sync; see DEVELOPMENT.md.
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.156.0'
+          extended: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+
+      - name: Check the built docs site
+        run: npm run test:agent-docs:local
+        timeout-minutes: 10

@@ -13,7 +13,23 @@
     <body>
         <div class="content">
             <div class="page-wrapper toggled">
-                {{- partial (printf "%s/%s" ($.Scratch.Get "pathName") "sidebar.html") . -}}
+                    {{/* The sidebar nav renders after <main> so that page
+                         content comes first in the DOM. An agent converting the
+                         HTML reads the documentation immediately rather than
+                         wading through 5KB of nav markup first, which is what
+                         afdocs' content-start-position check measures. The
+                         sidebar is position: fixed with .page-content carrying
+                         padding-left: 300px, so it is out of flow and the
+                         rendered page is unchanged; see
+                         lotusdocs/assets/docs/scss/custom/structure/_sidebar.scss.
+                         The theme's own JS reaches the sidebar by id and class
+                         only, never by sibling position.
+
+                         Content-first order does put keyboard focus into the
+                         page before the nav, which no longer matches the
+                         left-to-right visual order, so the skip link below
+                         restores a one-key path to navigation (WCAG 2.4.3). */}}
+                    <a class="visually-hidden-focusable" href="#sidebar-nav">Skip to navigation</a>
                     <!-- Start Page Content -->
                     <main class="page-content bg-transparent">
                         {{ partial "llms-directive.html" . }}
@@ -72,6 +88,14 @@
                             {{- partialCached (printf "%s/%s" ($.Scratch.Get "pathName") "footer.html") . -}}
 
                     </main>
+                    {{/* tabindex="-1" makes the skip link's target focusable in
+                         its own right, so the fragment jump moves focus rather
+                         than only scrolling. The wrapper is a plain div because
+                         the theme's selectors are all descendant selectors
+                         (.page-wrapper .sidebar-wrapper), not child ones. */}}
+                    <div id="sidebar-nav" tabindex="-1">
+                        {{- partial (printf "%s/%s" ($.Scratch.Get "pathName") "sidebar.html") . -}}
+                    </div>
             </div>
         </div>
 

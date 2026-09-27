@@ -1,0 +1,22 @@
+{{- /*
+  Rewrite root-relative markdown link destinations to absolute URLs.
+
+  Content authors write cross-references as `](/docs/quickstart/)`, which is
+  what the HTML output wants. Markdown, though, gets read away from the site it
+  came from: an agent pastes it into its context, a cache, another repo. A
+  root-relative target stops resolving the moment that happens, which is what
+  afdocs' markdown-link-portability check measures. Rewriting here keeps
+  authoring unchanged and fixes only the agent-facing output.
+
+  The origin comes from site.BaseURL, so `hugo server` emits localhost links and
+  a production build emits agentsummons.dev ones. Go's RE2 has no negative
+  lookahead, so protocol-relative targets (`](//host/path)`) are excluded by
+  requiring a non-slash first character, and bare root links (`](/)`) are
+  handled in a second pass.
+
+  Takes the markdown string as the context; returns the rewritten string.
+*/ -}}
+{{- $origin := strings.TrimSuffix "/" site.BaseURL -}}
+{{- $out := replaceRE `\]\(/([^/)][^)]*)\)` (printf "](%s/$1)" $origin) . -}}
+{{- $out = replaceRE `\]\(/\)` (printf "](%s/)" $origin) $out -}}
+{{- return $out -}}
