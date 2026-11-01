@@ -6,6 +6,8 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-31
+
 Validated against Antigravity CLI 1.4.12, Claude Code 2.1.309, Codex CLI
 0.166.0, and GitHub Copilot CLI 1.0.105 (`harness.LastValidated`,
 baselines, and inventories move together); agentsummons dependency
@@ -506,7 +508,8 @@ changes shape (below), and Codex sessions gain a system event.
   line accounting, loud parse failures, and transcript discovery via
   per-harness locators.
 
-[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/agent-ecosystem/agentminutes/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/agent-ecosystem/agentminutes/compare/v0.5.2...v0.6.0
