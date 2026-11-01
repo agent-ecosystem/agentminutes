@@ -26,7 +26,7 @@ evolve until 1.0.
 | --- | --- | --- |
 | Antigravity CLI | Supported | `~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript_full.jsonl` |
 | Claude Code | Supported | `~/.claude/projects/<project>/*.jsonl` |
-| Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
+| Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (or `.jsonl.zst`, compressed) |
 | Gemini CLI (classic) | Not planned | Retired for individual users June 2026; Antigravity is its successor |
 | GitHub Copilot CLI | Supported | `~/.copilot/session-state/<session-id>/events.jsonl` |
 

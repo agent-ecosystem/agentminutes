@@ -317,11 +317,31 @@ func checkTaskJoin(ctx CheckContext) []string {
 	if len(parents) == 0 {
 		return []string{"a parent transcript to gather from"}
 	}
+	// Gather every candidate first: a transcript another candidate's
+	// gather claims as its subagent is a child, not a parent, even when
+	// the format marks no subagent (Antigravity's content join; its
+	// children record no cwd, so the foreign-session veto cannot drop
+	// them, and on 1.4.12 they start with the parent's message rather
+	// than a USER_INPUT). Such a child is held to nothing of its own.
 	var findings []string
+	tasks := make(map[string]*agentminutes.TaskStats, len(parents))
+	children := map[string]bool{}
 	for _, p := range parents {
 		ts, err := agentminutes.Task(ctx.Harness, ctx.Root, p, harness.Options{})
 		if err != nil {
 			findings = append(findings, fmt.Sprintf("task gather of %s: %v", p, err))
+			continue
+		}
+		tasks[p] = ts
+		for _, tr := range ts.Transcripts {
+			if tr.Path != p {
+				children[tr.Path] = true
+			}
+		}
+	}
+	for _, p := range parents {
+		ts := tasks[p]
+		if ts == nil || children[p] {
 			continue
 		}
 		if ts.Join == harness.JoinInline {
@@ -670,7 +690,7 @@ func invokeAndParse(w io.Writer, r *Runner, name string, inv Invocation, opts Pr
 	var sessions []*session.Session
 	var kept []string
 	for _, f := range files {
-		data, err := os.ReadFile(f)
+		data, err := harness.ReadTranscript(f)
 		if err != nil {
 			say(w, "  probe %s: error: %v\n", name, err)
 			return nil, nil, ExecError

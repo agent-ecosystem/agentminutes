@@ -128,7 +128,7 @@ func Generate(w io.Writer, id harness.ID, version string, paths []string) (*Base
 	}
 	used := 0
 	for _, f := range files {
-		data, err := os.ReadFile(f)
+		data, err := harness.ReadTranscript(f)
 		if err != nil {
 			return nil, err
 		}

@@ -3,7 +3,8 @@ module github.com/agent-ecosystem/agentminutes
 go 1.25.5
 
 require (
-	github.com/agent-ecosystem/agentsummons v0.4.0
+	github.com/agent-ecosystem/agentsummons v0.4.1
+	github.com/klauspost/compress v1.18.5
 	github.com/spf13/cobra v1.10.2
 )
 

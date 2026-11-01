@@ -6,6 +6,87 @@ the Go tag). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1
 
 ## [Unreleased]
 
+Validated against Antigravity CLI 1.4.12, Claude Code 2.1.309, Codex CLI
+0.166.0, and GitHub Copilot CLI 1.0.105 (`harness.LastValidated`,
+baselines, and inventories move together); agentsummons dependency
+bumped to v0.4.1.
+
+### Added
+
+- Antigravity CLI: `PLANNER_RESPONSE` records carry per-response token
+  usage from agy 1.4.12 (`input_tokens`, `cache_read_tokens`,
+  `output_tokens`), which now attaches to each `assistant_message` and
+  sums into `totals`, with `total_prompt_tokens` derived under the
+  Anthropic-style convention (the fields are disjoint; verified on a
+  cached turn whose cache read exceeds its input). Older transcripts
+  keep no usage and no `totals`: an absent key is not a measured zero.
+- GitHub Copilot CLI: `session.usage_record` (1.0.105) records every API
+  call's usage ahead of the `assistant.message` it produced, matched by
+  `apiCallId`; the adapter attaches it as that message's usage
+  (`inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens`,
+  with `reasoningTokens` in `extra`), so Copilot sessions gain
+  per-message usage and `totals`. `inputTokens` is the total prompt (the
+  cache read, cache write, and uncached remainder summed), the
+  OpenAI-style convention, so `total_prompt_tokens` equals its sum. A
+  record no message claims (the harness's helper calls) stays in its
+  `system` event only. Sessions before 1.0.105 still report no totals.
+- GitHub Copilot CLI: the `hook.`, `external_tool.`, and `model.`
+  namespaces (interactive 1.0.88 through 1.0.92 sessions) parse as
+  telemetry `system` events instead of failing; a `hook.end` surfaces
+  the hook's `additionalContext` (text injected into the model's
+  context) as its `text`, and `session.compaction_complete` surfaces the
+  summary that replaces the compacted messages. `rg` and
+  `tool_search_tool` classify as `search`, `apply_patch` as `edit`.
+- Claude Code: the API request log 2.1.309 writes (`api-request-shape`,
+  `api-request-blob`, `api-request`) parses as `system` events of those
+  subtypes (the blob's role appended: `api-request-blob/user`, `/system`,
+  `/assistant`). The shape's `text` is the static system prompt as sent
+  (its system blocks blank-line-joined); a blob's `text` is its text
+  blocks joined, with each `<system-reminder>` wrapper stripped in the
+  bare form and kept under `--text-form delivered`; the request record
+  carries its own `id` and no text. The blobs duplicate the conversation
+  records they were assembled from (a prompt appears in its user record
+  and in a user-role blob): consumers counting conversation text should
+  exclude the `api-request-blob/*` subtypes or expect the overlap. The
+  system-role blob is the only record of how the system-role reminders
+  were delivered (folded into one system block, wrapper stripped).
+  `prompt_snapshot`'s `text` now starts with the identity line the
+  2.1.309 snapshot records as `cliPrefix`, so it equals the shape's.
+- Claude Code: `artifact-comment-monitor` and `artifact-autoreact-ledger`
+  (2.1.285) join the skip list.
+- Codex CLI: the `additional_tools` response item 0.166.0 writes at the
+  start of every thread (the developer-role tool catalog) is a `system`
+  event of subtype `additional_tools` with the catalog in `details`;
+  every 0.166.0 rollout failed strict parsing on it before.
+- Codex CLI: compressed rollouts (`rollout-*.jsonl.zst`, the 0.164.0
+  rollout-compression feature: a zstd stream of the plain file, written
+  by a background worker for rollouts older than seven days once the
+  `local_thread_store_compression` feature is on) are read like plain
+  ones. Every transcript now opens through `harness.OpenTranscript`
+  (new, with `ReadTranscript`), which decodes `.zst` transparently, so
+  `convert`, `stats`, `detect`, `sessions`, task gathering, and
+  `drift scan` all accept an archive. Discovery lists an archive as the
+  session, counts a `.zst` whose plain sibling still exists as a skip
+  (the plain file is the live one, as the harness resolves it), and
+  `--session-id` lookup tries the plain name first. Validated against
+  archives Codex 0.166.0 produced. Adds the pure-Go
+  `github.com/klauspost/compress` dependency.
+- Antigravity CLI: the `write_file` and `read_file` tool names agy
+  1.4.12 uses in place of `write_to_file` and `view_file` classify as
+  `edit` and `read`, and a shell result's 1.4.12 template (`Command
+  exited with code N.`) still classifies a nonzero exit as a failed
+  call.
+
+### Changed
+
+- `drift probe`'s subagent task-join check no longer holds a transcript
+  that another probe transcript's gather claims as its child to having
+  children of its own (Antigravity 1.4.12 child conversations start with
+  the parent's message, record no cwd, and carry no subagent marker).
+- The Copilot drift baseline collapses every `<name>-mcp-server-<tool>`
+  tool-name family to its server prefix (previously only the built-in
+  GitHub server's).
+
 ## [0.8.0] - 2026-09-25
 
 ### Added

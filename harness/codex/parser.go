@@ -385,6 +385,14 @@ func (p *parser) responseItem(rec *rolloutLine, data []byte) bool {
 		return p.toolResult(rec, &item, data)
 	case "web_search_call":
 		return p.webSearchCall(rec, &item, data)
+	case "additional_tools":
+		// The tool catalog the harness adds to the request (0.166.0): a
+		// developer-role item whose tools[] are namespaces (functions,
+		// clock, collaboration, ...) of function/custom tool definitions.
+		// Tool schemas are sent as the API's tools parameter, not as
+		// prompt text, so the event surfaces no Text; the payload rides
+		// in Details as for deferred_tools_record on Claude Code.
+		return p.system(rec, data, "additional_tools", "", "")
 	default:
 		return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("unrecognized response_item type %q", item.Type))
 	}

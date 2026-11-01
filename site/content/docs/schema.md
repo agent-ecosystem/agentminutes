@@ -30,15 +30,17 @@ field is set per event, matching its `kind`:
   test, so the mapping cannot rot.
 - **Token fields carry provider semantics; totals carry a derived
   comparable field.** The field names are shared, and the meanings
-  follow the provider: OpenAI-style usage (codex) reports
-  `input_tokens` as the total prompt with the cache fields as subsets
-  of it (the native `cache_write_input_tokens` maps to
+  follow the provider: OpenAI-style usage (codex, and copilot from
+  1.0.105) reports `input_tokens` as the total prompt with the cache
+  fields as subsets of it (codex's native `cache_write_input_tokens`
+  and copilot's `cacheWriteTokens` map to
   `cache_creation_input_tokens`), while Anthropic-style usage
-  (claude-code) reports it as only the uncached remainder alongside
-  disjoint cache read and creation fields. Adapters preserve what the
-  harness recorded, so `input_tokens` is never directly comparable
-  across harnesses (and Copilot CLI records no per-message usage at
-  all, so its `totals` are omitted; see
+  (claude-code, and antigravity from agy 1.4.12) reports it as only the
+  uncached remainder alongside disjoint cache read and creation fields.
+  Adapters preserve what the harness recorded, so `input_tokens` is
+  never directly comparable across harnesses (and transcripts from
+  before those releases record no per-message usage at all, so their
+  `totals` are omitted; see
   [Comparing Token Counts](/docs/token-comparison/)). Session totals therefore also carry
   `total_prompt_tokens`, derived from each harness's documented
   convention: that is the number to compare. See the

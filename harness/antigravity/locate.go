@@ -165,7 +165,7 @@ func conversationIDOf(path string) string {
 // childIDs parses a transcript and returns the conversation ids named by
 // its invoke_subagent results, in order.
 func childIDs(a Adapter, path string) ([]string, error) {
-	f, err := os.Open(path)
+	f, err := harness.OpenTranscript(path)
 	if err != nil {
 		return nil, scanError(path, err)
 	}

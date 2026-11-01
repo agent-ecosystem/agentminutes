@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -57,7 +56,7 @@ auto-detected per file. Nothing is invoked and nothing is spent.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			worst := driftprobe.Clean
 			for _, path := range args {
-				data, err := os.ReadFile(path)
+				data, err := harness.ReadTranscript(path)
 				if err != nil {
 					return err
 				}

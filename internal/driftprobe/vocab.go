@@ -121,13 +121,18 @@ var vocabConfigs = map[harness.ID]vocabConfig{
 			"tool.execution_start":    {"data.toolName", "data.mcpConfigSource", "data.mcpTransport"},
 			"user.message":            {"data.delivery", "data.source"},
 		},
-		// The built-in GitHub MCP server's tools are named
-		// github-mcp-server-<tool>; their set is server config, not
-		// harness vocabulary. A subagent prompt's source names the
-		// parent session ("agent-<uuid>"): the prefix is the vocabulary.
+		// MCP server tools are named <server>-<tool>, and the servers
+		// the harness or an IDE ships follow the <name>-mcp-server-<tool>
+		// pattern (github-mcp-server-* built in, pylance-mcp-server-* in
+		// VS Code sessions); their tool sets are server config, not
+		// harness vocabulary, so the server prefix is the vocabulary. A
+		// subagent prompt's source names the parent session
+		// ("agent-<uuid>"): the prefix is the vocabulary.
 		normalize: func(path, value string) string {
-			if (path == "data.toolRequests[].name" || path == "data.toolName") && strings.HasPrefix(value, "github-mcp-server-") {
-				return "github-mcp-server-*"
+			if path == "data.toolRequests[].name" || path == "data.toolName" {
+				if server, _, ok := strings.Cut(value, "-mcp-server-"); ok {
+					return server + "-mcp-server-*"
+				}
 			}
 			if path == "data.source" && strings.HasPrefix(value, "agent-") {
 				return "agent-*"

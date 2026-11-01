@@ -286,7 +286,7 @@ func mergeAgent(dst map[string]*session.AgentStats, key string, v *session.Agent
 
 // parseFile parses one transcript file with the adapter.
 func parseFile(a harness.Adapter, path string, opts harness.Options, transforms []session.Transform) (*session.Session, error) {
-	f, err := os.Open(path)
+	f, err := harness.OpenTranscript(path)
 	if err != nil {
 		return nil, err
 	}

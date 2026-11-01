@@ -1,6 +1,6 @@
 {
   "harness": "codex",
-  "generated_from_version": "0.157.0",
+  "generated_from_version": "0.166.0",
   "record_types": {
     "event_msg": {
       "keys": [
@@ -26,6 +26,7 @@
         "payload.phase",
         "payload.query",
         "payload.rate_limits",
+        "payload.reason",
         "payload.root_turn_id",
         "payload.started_at",
         "payload.started_at_ms",
@@ -37,6 +38,7 @@
         "payload.thread_id",
         "payload.thread_settings",
         "payload.time_to_first_token_ms",
+        "payload.turn_attribution",
         "payload.turn_id",
         "payload.type",
         "timestamp",
@@ -67,6 +69,7 @@
           "task_started",
           "thread_settings_applied",
           "token_count",
+          "turn_aborted",
           "user_message",
           "web_search_end"
         ]
@@ -88,6 +91,7 @@
         "metadata.fallback_token_limit_override",
         "metadata.inherited_user_message",
         "metadata.mcp_attribution",
+        "metadata.retained_source",
         "metadata.user_input_order",
         "ordinal",
         "payload",
@@ -108,6 +112,7 @@
         "payload.role",
         "payload.status",
         "payload.summary",
+        "payload.tools",
         "payload.type",
         "timestamp",
         "type"
@@ -119,6 +124,7 @@
           "wait_agent"
         ],
         "payload.type": [
+          "additional_tools",
           "agent_message",
           "custom_tool_call",
           "custom_tool_call_output",
@@ -186,6 +192,7 @@
         "payload.comp_hash",
         "payload.current_date",
         "payload.cwd",
+        "payload.cyber_access_program",
         "payload.developer_instructions",
         "payload.disabled_plugin_ids",
         "payload.effort",

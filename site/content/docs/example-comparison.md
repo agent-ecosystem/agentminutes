@@ -197,10 +197,12 @@ on those transcripts.
 
 Three things the two-harness table could not show:
 
-- **Two harnesses record no per-message usage at all**, so their
-  `totals` are omitted rather than zero. Antigravity records nothing;
-  Copilot CLI records session-cumulative per-model totals in a
-  shutdown record, preserved as a `system` event. A cost column across
+- **Two harnesses recorded no per-message usage at all** on these
+  releases, so their `totals` are omitted rather than zero. Antigravity
+  1.2.11 records nothing (agy 1.4.12 began recording per-response
+  usage); Copilot CLI 1.0.88 records session-cumulative per-model
+  totals in a shutdown record, preserved as a `system` event (1.0.105
+  began writing a usage record per API call). A cost column across
   all four needs those two read differently, as
   [Comparing Token Counts](/docs/token-comparison/) lays out.
 - **The Codex edit is still telemetry.** On 0.157.0 the edit surfaces

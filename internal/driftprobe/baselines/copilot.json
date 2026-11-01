@@ -1,6 +1,6 @@
 {
   "harness": "copilot",
-  "generated_from_version": "1.0.88",
+  "generated_from_version": "1.0.105",
   "record_types": {
     "abort": {
       "keys": [
@@ -30,6 +30,7 @@
         "data.originatingMessageId",
         "data.parentToolCallId",
         "data.phase",
+        "data.providerId",
         "data.reasoningBlocks",
         "data.reasoningOpaque",
         "data.reasoningText",
@@ -48,6 +49,8 @@
           "openai-responses"
         ],
         "data.toolRequests[].name": [
+          "add_artifact_or_reference",
+          "apply_patch",
           "bash",
           "create",
           "edit",
@@ -60,15 +63,19 @@
           "grep_search",
           "list_agents",
           "list_bash",
+          "pylance-mcp-server-*",
           "read_agent",
           "read_bash",
           "read_file",
+          "rg",
+          "runTests",
           "search_code_subagent",
           "session_store_sql",
           "skill",
           "sql",
           "stop_bash",
           "task",
+          "tool_search_tool",
           "view",
           "web_fetch",
           "write_agent"
@@ -79,6 +86,7 @@
       "keys": [
         "agentId",
         "data",
+        "data.parentToolCallId",
         "data.turnId",
         "id",
         "parentId",
@@ -91,7 +99,181 @@
         "agentId",
         "data",
         "data.interactionId",
+        "data.parentToolCallId",
         "data.turnId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "external_tool.completed": {
+      "keys": [
+        "data",
+        "data.requestId",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "external_tool.requested": {
+      "keys": [
+        "data",
+        "data.arguments",
+        "data.requestId",
+        "data.sessionId",
+        "data.toolCallId",
+        "data.toolName",
+        "data.workingDirectory",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "hook.end": {
+      "keys": [
+        "data",
+        "data.hookInvocationId",
+        "data.hookType",
+        "data.output",
+        "data.success",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "hook.start": {
+      "keys": [
+        "data",
+        "data.hookInvocationId",
+        "data.hookType",
+        "data.input",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.captured_assignment_context": {
+      "keys": [
+        "data",
+        "data.assignmentContext",
+        "data.kind",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.message": {
+      "keys": [
+        "data",
+        "data.callId",
+        "data.kind",
+        "data.message",
+        "data.modelCall",
+        "data.turn",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.messages_snapshot": {
+      "keys": [
+        "data",
+        "data.kind",
+        "data.messages",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.model_call_started": {
+      "keys": [
+        "data",
+        "data.kind",
+        "data.model",
+        "data.modelInfo",
+        "data.timestampMs",
+        "data.turn",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.model_call_success": {
+      "keys": [
+        "data",
+        "data.callId",
+        "data.clientRequestId",
+        "data.copilotUsage",
+        "data.interTokenLatencyMs",
+        "data.kind",
+        "data.maxOutputTokens",
+        "data.modelCall",
+        "data.modelCallDurationMs",
+        "data.outputTtftMs",
+        "data.quotaSnapshots",
+        "data.reasoningEffort",
+        "data.reasoningSummary",
+        "data.requestId",
+        "data.requestMessages",
+        "data.requestSettings",
+        "data.responseChunk",
+        "data.responseUsage",
+        "data.rte",
+        "data.serviceRequestId",
+        "data.toolCount",
+        "data.ttftMs",
+        "data.turn",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.response": {
+      "keys": [
+        "data",
+        "data.callId",
+        "data.kind",
+        "data.modelCall",
+        "data.response",
+        "data.turn",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.turn_ended": {
+      "keys": [
+        "data",
+        "data.kind",
+        "data.model",
+        "data.modelInfo",
+        "data.timestampMs",
+        "data.turn",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "model.turn_started": {
+      "keys": [
+        "data",
+        "data.kind",
+        "data.model",
+        "data.modelInfo",
+        "data.timestampMs",
+        "data.turn",
         "id",
         "parentId",
         "timestamp",
@@ -112,9 +294,12 @@
       ],
       "discriminators": {
         "data.decisionSource": [
+          "host_policy",
+          "human_response",
           "unattended_fallback"
         ],
         "data.result.kind": [
+          "approved",
           "denied-no-approval-rule-and-could-not-request-from-user"
         ]
       }
@@ -140,11 +325,20 @@
           "manual"
         ],
         "data.permissionRequest.kind": [
+          "custom-tool",
+          "mcp",
+          "read",
           "shell",
+          "url",
           "write"
         ],
         "data.promptRequest.kind": [
           "commands",
+          "custom-tool",
+          "mcp",
+          "path",
+          "read",
+          "url",
           "write"
         ]
       }
@@ -172,6 +366,46 @@
         ]
       }
     },
+    "session.compaction_complete": {
+      "keys": [
+        "data",
+        "data.behaviorModelId",
+        "data.checkpointNumber",
+        "data.checkpointPath",
+        "data.compactionTokensUsed",
+        "data.messagesRemoved",
+        "data.postCompactionTokens",
+        "data.preCompactionMessagesLength",
+        "data.preCompactionTokens",
+        "data.requestId",
+        "data.responsesReasoning",
+        "data.serviceRequestId",
+        "data.success",
+        "data.summaryContent",
+        "data.tokenLimit",
+        "data.tokensRemoved",
+        "data.trigger",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "session.compaction_start": {
+      "keys": [
+        "data",
+        "data.conversationTokens",
+        "data.currentTokens",
+        "data.systemTokens",
+        "data.tokenLimit",
+        "data.toolDefinitionsTokens",
+        "data.trigger",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
     "session.info": {
       "keys": [
         "data",
@@ -196,6 +430,7 @@
         "data.contextTier",
         "data.newModel",
         "data.previousModel",
+        "data.previousReasoningEffort",
         "data.reasoningEffort",
         "data.source",
         "id",
@@ -210,6 +445,7 @@
         "data.source": [
           "agent",
           "automatic",
+          "sdk",
           "startup"
         ]
       }
@@ -235,10 +471,12 @@
         "data.contextTier",
         "data.eventCount",
         "data.eventsFileSizeBytes",
+        "data.reasoningEffort",
         "data.remoteSteerable",
         "data.resumeTime",
         "data.selectedModel",
         "data.sessionLimits",
+        "data.sessionWasActive",
         "id",
         "parentId",
         "timestamp",
@@ -248,6 +486,7 @@
     "session.shutdown": {
       "keys": [
         "data",
+        "data.accountingSnapshot",
         "data.agentMetrics",
         "data.codeChanges",
         "data.conversationTokens",
@@ -255,6 +494,7 @@
         "data.currentTokens",
         "data.eventsFileSizeBytes",
         "data.modelMetrics",
+        "data.providerModelMetrics",
         "data.sessionStartTime",
         "data.shutdownType",
         "data.systemTokens",
@@ -263,6 +503,7 @@
         "data.totalApiDurationMs",
         "data.totalNanoAiu",
         "data.totalPremiumRequests",
+        "data.usageAccountingWatermarks",
         "id",
         "parentId",
         "timestamp",
@@ -281,6 +522,7 @@
         "data.context",
         "data.contextTier",
         "data.copilotVersion",
+        "data.githubMcpToolConfig",
         "data.producer",
         "data.reasoningEffort",
         "data.remoteSteerable",
@@ -297,10 +539,24 @@
     "session.usage_checkpoint": {
       "keys": [
         "data",
+        "data.accountingSnapshot",
         "data.modelCacheState",
         "data.promptCacheBreakState",
+        "data.providerModelMetrics",
         "data.totalNanoAiu",
         "data.totalPremiumRequests",
+        "data.usageAccountingWatermarks",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "session.usage_record": {
+      "keys": [
+        "agentId",
+        "data",
+        "data.usage",
         "id",
         "parentId",
         "timestamp",
@@ -342,6 +598,7 @@
       ],
       "discriminators": {
         "data.source": [
+          "plugin",
           "project"
         ],
         "data.trigger": [
@@ -404,6 +661,15 @@
         "data.model",
         "data.multiTurn",
         "data.reasoningEffort",
+        "id",
+        "parentId",
+        "timestamp",
+        "type"
+      ]
+    },
+    "subagent.deselected": {
+      "keys": [
+        "data",
         "id",
         "parentId",
         "timestamp",
@@ -488,6 +754,7 @@
         "data.content",
         "data.contentBlocks",
         "data.interactionId",
+        "data.metadata",
         "data.role",
         "id",
         "parentId",
@@ -500,6 +767,7 @@
         "agentId",
         "data",
         "data.error",
+        "data.fileEdits",
         "data.interactionId",
         "data.model",
         "data.parentToolCallId",
@@ -547,6 +815,7 @@
       "discriminators": {
         "data.mcpConfigSource": [
           "builtin",
+          "plugin",
           "user"
         ],
         "data.mcpTransport": [
@@ -554,6 +823,8 @@
           "stdio"
         ],
         "data.toolName": [
+          "add_artifact_or_reference",
+          "apply_patch",
           "bash",
           "create",
           "edit",
@@ -566,15 +837,19 @@
           "grep_search",
           "list_agents",
           "list_bash",
+          "pylance-mcp-server-*",
           "read_agent",
           "read_bash",
           "read_file",
+          "rg",
+          "runTests",
           "search_code_subagent",
           "session_store_sql",
           "skill",
           "sql",
           "stop_bash",
           "task",
+          "tool_search_tool",
           "view",
           "web_fetch",
           "write_agent"
@@ -585,11 +860,13 @@
       "keys": [
         "agentId",
         "data",
+        "data.attachments",
         "data.content",
         "data.delivery",
         "data.interactionId",
         "data.messageId",
         "data.parentAgentTaskId",
+        "data.responsesReasoning",
         "data.source",
         "data.supportedNativeDocumentMimeTypes",
         "data.transformedContent",

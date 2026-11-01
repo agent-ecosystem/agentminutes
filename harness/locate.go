@@ -274,7 +274,7 @@ func ConfirmSessionID(id ID, path, inBand, requested string) error {
 // loudly rather than a legitimate transcript with a large first record
 // failing a byte budget.
 func ReadIdentity(a Adapter, path string) (session.Meta, *time.Time, error) {
-	f, err := os.Open(path)
+	f, err := OpenTranscript(path)
 	if err != nil {
 		return session.Meta{}, nil, err
 	}

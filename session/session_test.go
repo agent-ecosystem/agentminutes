@@ -141,16 +141,19 @@ func TestAccumulator(t *testing.T) {
 }
 
 // TestTotalPromptTokensConventions pins the derived comparable total:
-// Anthropic-style disjoint input fields sum, OpenAI-style input_tokens is
-// already the total, and an unknown harness derives nothing. The derived
+// Anthropic-style disjoint input fields sum (claude-code, antigravity),
+// OpenAI-style input_tokens is already the total (codex, copilot), and an
+// unknown harness derives nothing. The derived
 // field lands on session totals only, never on per-message usage.
 func TestTotalPromptTokensConventions(t *testing.T) {
 	cases := []struct {
 		harness string
 		want    int64
 	}{
+		{"antigravity", 450}, // disjoint, like claude-code (cache creation unobserved, zero)
 		{"claude-code", 450}, // 300 input + 100 read + 50 creation, disjoint
 		{"codex", 300},       // input is already the total prompt
+		{"copilot", 300},     // inputTokens is already the total prompt
 		{"some-future-harness", 0},
 	}
 	for _, tc := range cases {

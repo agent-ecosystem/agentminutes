@@ -17,8 +17,11 @@ import (
 
 // record is the top-level envelope of one transcript line.
 type record struct {
-	Type        string          `json:"type"`
-	UUID        string          `json:"uuid"`
+	Type string `json:"type"`
+	UUID string `json:"uuid"`
+	// ID is an api-request record's own id (the request log's records
+	// carry no uuid or parentUuid; a blob carries no timestamp either).
+	ID          string          `json:"id"`
 	ParentUUID  string          `json:"parentUuid"`
 	Timestamp   string          `json:"timestamp"`
 	SessionID   string          `json:"sessionId"`
@@ -61,11 +64,18 @@ type record struct {
 	} `json:"origin"`
 	ToolUseResult json.RawMessage `json:"toolUseResult"`
 	IsAPIError    bool            `json:"isApiErrorMessage"`
+	// Shape is an api-request-shape record's request shape: system[] (the
+	// API's system blocks, {type: "text", text}) and tools[] (the tool
+	// definitions). An api-request-blob's message rides in Message.
+	Shape *struct {
+		System json.RawMessage `json:"system"`
+	} `json:"shape"`
 }
 
 // apiMessage is the message body of user and assistant records.
 type apiMessage struct {
 	ID         string          `json:"id"`
+	Role       string          `json:"role"`
 	Model      string          `json:"model"`
 	StopReason string          `json:"stop_reason"`
 	Content    json.RawMessage `json:"content"`
@@ -172,6 +182,8 @@ func (p *parser) record(data []byte) bool {
 		return p.conversation(&rec, data, p.attachment)
 	case rec.Type == "cost-state":
 		return p.conversation(&rec, data, p.costState)
+	case requestTypes[rec.Type]:
+		return p.conversation(&rec, data, p.apiRequest)
 	default:
 		return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("unrecognized record type %q", rec.Type))
 	}
@@ -497,6 +509,103 @@ func (p *parser) costState(_ *record, data []byte) bool {
 	})
 }
 
+// apiRequest preserves the API request log (2.1.309+) as system events,
+// one per record, with the whole record in Details and the request's
+// model-visible text as Text where the record carries it:
+//
+//   - api-request-shape: the system blocks (shape.system[].text), joined
+//     with a blank line in order. This is the static system prompt as
+//     sent (the identity line, then the prompt_snapshot sections), the
+//     block layout the attachment's joined sections approximate. The tool
+//     definitions (shape.tools[]) are the API's tools parameter, not text.
+//   - api-request-blob: one message of the request, role in the subtype
+//     (api-request-blob/user, /assistant, /system). Text is its text
+//     blocks joined with a blank line: in the bare form each block's
+//     <system-reminder> wrapper is stripped, as for rendered attachments
+//     (a user-role blob carries the user-role reminders wrapped, exactly
+//     as the attachments' rendered form records them, then the prompt);
+//     the delivered form keeps the blocks verbatim. A system-role blob is
+//     the dynamic system block the system-role reminders fold into: their
+//     rendered forms with the wrapper removed, blank-line-joined (verified
+//     byte-exact on 2.1.309), so it has no wrapper in either form. The
+//     other block kinds (tool_use, tool_result, thinking, tool_addition)
+//     are the wire form of the tool call, result, and thinking events and
+//     the tool definitions, enumerated in the text audit's nonText.
+//   - api-request: the request's params, shape hash, kept prefix length,
+//     tail blob hashes, and cache control; no text.
+//
+// A blob is written once per content hash and referenced by every request
+// whose tail carries it, so the request log duplicates the conversation
+// records it was assembled from (a prompt appears in its user record and
+// in a user-role blob). Consumers counting conversation text should
+// exclude the api-request-blob/* subtypes or expect that overlap; the
+// blobs are kept as events because they are the wire record of delivery,
+// and for the system-role reminders the only record of the delivered
+// form (the attachments' rendered form carries a wrapper the request does
+// not).
+func (p *parser) apiRequest(rec *record, data []byte) bool {
+	var subtype, text string
+	switch rec.Type {
+	case "api-request-shape":
+		subtype = rec.Type
+		if rec.Shape != nil && len(rec.Shape.System) > 0 {
+			blocks, err := parseBlocks(rec.Shape.System)
+			if err != nil {
+				return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed api-request-shape system: %v", err))
+			}
+			text = joinTextBlocks(blocks, func(s string) string { return s })
+		}
+	case "api-request-blob":
+		var msg apiMessage
+		if len(rec.Message) == 0 {
+			return p.UnknownOrFail(rec.Type, data, "api-request-blob record has no message")
+		}
+		if err := json.Unmarshal(rec.Message, &msg); err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed api-request-blob message: %v", err))
+		}
+		blocks, err := parseBlocks(msg.Content)
+		if err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed api-request-blob content: %v", err))
+		}
+		subtype = rec.Type + "/" + msg.Role
+		form := stripReminder
+		if p.Opts.TextForm == harness.TextDelivered {
+			form = func(s string) string { return s }
+		}
+		text = joinTextBlocks(blocks, form)
+	default:
+		subtype = rec.Type
+	}
+	return p.Emit(session.Event{
+		Kind:       session.KindSystem,
+		Timestamp:  parseutil.ParseTime(rec.Timestamp),
+		ID:         rec.ID,
+		Provenance: p.Prov(data),
+		System: &session.SystemEvent{
+			Subtype: subtype,
+			Text:    text,
+			Details: parseutil.CloneRaw(data),
+		},
+	})
+}
+
+// joinTextBlocks joins the text blocks of an API message with a blank
+// line, each passed through form (identity, or the reminder-tag strip),
+// skipping blocks that come out empty. The join matches joinRendered: a
+// request's text blocks are the attachments' rendered messages.
+func joinTextBlocks(blocks []block, form func(string) string) string {
+	var parts []string
+	for i := range blocks {
+		if blocks[i].Type != "text" {
+			continue
+		}
+		if s := form(blocks[i].Text); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, "\n\n")
+}
+
 // attachment is the model-visible part of an attachment record, for
 // records without a rendered form. Which key carries the text varies by
 // type: content on the older types (task_reminder, skill_listing,
@@ -509,8 +618,13 @@ type attachment struct {
 	Text    json.RawMessage `json:"text"`
 	// SystemPrompt is prompt_snapshot's system prompt, one section per
 	// element, with a __SYSTEM_PROMPT_DYNAMIC_BOUNDARY__ sentinel between
-	// the cached and the per-turn sections.
+	// the cached and the per-turn sections. CLIPrefix (2.1.309+) is the
+	// identity line the harness sends as the first system block ahead of
+	// the sections ("You are a Claude agent, ..."), recorded on the
+	// snapshots that carry the request's layout flags; with it the joined
+	// text equals the api-request-shape's system blocks.
 	SystemPrompt []string `json:"systemPrompt"`
+	CLIPrefix    string   `json:"cliPrefix"`
 	// Files is instructions' CLAUDE.md set (path, type, content).
 	Files []struct {
 		Content string `json:"content"`
@@ -637,7 +751,7 @@ func bareAttachmentText(att *attachment) string {
 	}
 	switch att.Type {
 	case "prompt_snapshot":
-		return joinPromptSections(att.SystemPrompt)
+		return joinPromptSections(append([]string{att.CLIPrefix}, att.SystemPrompt...))
 	case "instructions":
 		parts := make([]string, 0, len(att.Files))
 		for _, f := range att.Files {

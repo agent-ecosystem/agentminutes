@@ -11,7 +11,7 @@ weight: 700
 | --- | --- | --- |
 | Antigravity CLI | Supported | `~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript_full.jsonl` |
 | Claude Code | Supported | `~/.claude/projects/<project>/*.jsonl` |
-| Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
+| Codex CLI | Supported | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (or `.jsonl.zst`, compressed) |
 | Gemini CLI (classic) | Not planned | Retired for individual users June 2026; Antigravity is its successor |
 | GitHub Copilot CLI | Supported | `~/.copilot/session-state/<session-id>/events.jsonl` |
 
@@ -56,19 +56,33 @@ One Codex detail: the system prompt travels in the `session_meta`
 record, which becomes the `session_meta` event, so the adapter also
 emits it as a `system` event of subtype `session_meta/base_instructions`
 on the same line, with the prompt as `text`. Every Codex session has
-one more `system` event than its record count suggests.
+one more `system` event than its record count suggests. A rollout the
+harness has compressed (`rollout-*.jsonl.zst`, a zstd stream of the
+plain file that Codex 0.164.0 and later write for rollouts older than
+seven days once its rollout-compression feature is on) is read like a
+plain one, by every command; when both representations exist, the
+plain file is the session and the archive is a counted skip, which is
+how Codex itself resolves them.
 
 Two Antigravity caveats worth knowing: its transcripts carry no token
-usage, and its tool calls have no correlation IDs (the adapter
+usage before agy 1.4.12 (from 1.4.12 every model response records
+`input_tokens`, `cache_read_tokens`, and `output_tokens`, which the
+adapter attaches to the assistant message; older sessions have no
+`totals`), and its tool calls have no correlation IDs (the adapter
 synthesizes step-derived IDs and pairs positionally). Its `thinking`
 key carries a summary on Gemini models and the full plaintext reasoning
 on the Claude and GPT-OSS models it also serves.
 
 One Copilot CLI caveat: its transcripts record no per-message token
-usage. The only usage numbers are session-cumulative, per-model totals
-in the `session.shutdown` record (and a prompt-side snapshot of the
-last API call in `session.usage_checkpoint`), so `totals` is omitted
-and those records are preserved as `system` events with the numbers in
+usage before 1.0.105. From 1.0.105 a `session.usage_record` precedes
+every assistant message with that API call's usage, matched by
+`apiCallId`, and the adapter attaches it, so those sessions carry
+per-message usage and `totals` (`inputTokens` there is the total
+prompt, the OpenAI-style convention). Older sessions have only the
+session-cumulative, per-model totals in the `session.shutdown` record
+(and a prompt-side snapshot of the last API call in
+`session.usage_checkpoint`), so their `totals` is omitted and those
+records are preserved as `system` events with the numbers in
 `details`. A resumed session writes another `session.shutdown` with
 cumulative counts, so the session total is the last one. The event
 schema itself is observed, not documented by GitHub; reasoning was
@@ -79,7 +93,11 @@ attributed by `agent_id`, at any depth and including background and
 parallel agents; see [Subagents](/docs/subagents/#github-copilot-cli).
 Every built-in tool registered on 1.0.88 was exercised, including
 failures: a tool that could not run, and a shell command that exited
-nonzero, both parse as failed results.
+nonzero, both parse as failed results. Interactive sessions add hook
+runs (`hook.start`/`hook.end`, a hook's injected context surfacing as
+the end event's `text`), compaction records (the summary surfacing as
+`text`), and the harness's helper-model calls (`model.*`), all
+preserved as `system` events.
 
 A Copilot CLI skill activation becomes a `system` event of subtype
 `skill.invoked` whose `text` is what the harness delivered: the

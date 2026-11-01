@@ -1,6 +1,6 @@
 {
   "harness": "antigravity",
-  "generated_from_version": "1.2.11",
+  "generated_from_version": "1.4.12",
   "record_types": {
     "ASK_QUESTION": {
       "keys": [
@@ -127,8 +127,11 @@
     },
     "PLANNER_RESPONSE": {
       "keys": [
+        "cache_read_tokens",
         "content",
         "created_at",
+        "input_tokens",
+        "output_tokens",
         "source",
         "status",
         "step_index",
@@ -150,12 +153,14 @@
           "list_permissions",
           "manage_subagents",
           "manage_task",
+          "read_file",
           "read_url_content",
           "replace_file_content",
           "run_command",
           "search_web",
           "send_message",
           "view_file",
+          "write_file",
           "write_to_file"
         ]
       }

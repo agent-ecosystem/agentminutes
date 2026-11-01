@@ -62,6 +62,11 @@ archives stay discoverable. And the `.meta.json` sidecars next to the
 subagent transcripts are excluded with a counted skip reason, under
 the same accounting discipline described below.
 
+A Codex rollout may be stored compressed (`rollout-*.jsonl.zst`);
+discovery lists it as the session and reads it through the same
+decoder every other command uses, and a `.zst` whose plain sibling
+still exists is skipped as a duplicate rather than listed twice.
+
 Codex subagents are sibling rollout files rather than nested ones, and
 their filenames carry each thread's own id while the in-band
 `session_id` records the root thread's. Consequences for discovery: a

@@ -24,7 +24,16 @@ type record struct {
 	CreatedAt string `json:"created_at"`
 	Content   string `json:"content"`
 	Thinking  string `json:"thinking"`
-	Error     string `json:"error"`
+	// InputTokens, CacheReadTokens, and OutputTokens are the per-response
+	// usage agy 1.4.12 writes on PLANNER_RESPONSE records (absent before).
+	// Pointers distinguish an absent key (older releases: no usage) from
+	// a recorded zero. input_tokens is the uncached remainder, disjoint
+	// from cache_read_tokens (a cached turn's cache_read_tokens exceeds
+	// its input_tokens); no cache-write figure is recorded.
+	InputTokens     *int64 `json:"input_tokens"`
+	CacheReadTokens *int64 `json:"cache_read_tokens"`
+	OutputTokens    *int64 `json:"output_tokens"`
+	Error           string `json:"error"`
 	// ErrorCode is numeric in observed data; raw tolerates either shape.
 	ErrorCode json.RawMessage `json:"error_code"`
 	ToolCalls []toolCall      `json:"tool_calls"`
@@ -64,9 +73,11 @@ func (m *mediaRef) UnmarshalJSON(data []byte) error {
 }
 
 // exitCodeRe finds the exit code run_command results embed in their
-// templated content ("The command exited with code 1. Output: ..."), the
-// only record of a failed command: such steps carry no error key.
-var exitCodeRe = regexp.MustCompile(`(?m)^The command exited with code (\d+)\.`)
+// templated content ("The command exited with code 1. Output: ..." through
+// 1.2.11; "Command exited with code 1.\n\nCommand output:\n..." under the
+// Created At/Completed At header from 1.4.12), the only record of a failed
+// command: such steps carry no error key.
+var exitCodeRe = regexp.MustCompile(`(?m)^(?:The command|Command) exited with code (\d+)\.`)
 
 // failedCommand reports whether a run_command result's content records a
 // nonzero exit.
@@ -240,6 +251,26 @@ func (p *parser) userInput(rec *record) bool {
 	return p.system(rec, "user_input_context", "", remainder)
 }
 
+// usage returns the record's per-response usage (1.4.12+), or nil when
+// the record carries none of the three keys, so older transcripts keep
+// absent usage and absent totals rather than a measured zero.
+func (r *record) usage() *session.TokenUsage {
+	if r.InputTokens == nil && r.CacheReadTokens == nil && r.OutputTokens == nil {
+		return nil
+	}
+	u := &session.TokenUsage{}
+	if r.InputTokens != nil {
+		u.InputTokens = *r.InputTokens
+	}
+	if r.CacheReadTokens != nil {
+		u.CacheReadInputTokens = *r.CacheReadTokens
+	}
+	if r.OutputTokens != nil {
+		u.OutputTokens = *r.OutputTokens
+	}
+	return u
+}
+
 // planner emits an assistant turn: thinking (when present), the
 // assistant_message anchor, then one tool_call per entry, all sharing a
 // step-derived MessageID. Any still-pending calls are abandoned: a new
@@ -275,6 +306,7 @@ func (p *parser) planner(rec *record) bool {
 		AssistantMessage: &session.AssistantMessage{
 			Model:   p.model,
 			Content: content,
+			Usage:   rec.usage(),
 		},
 	}
 	if !p.Emit(anchor) {

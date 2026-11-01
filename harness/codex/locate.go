@@ -17,7 +17,20 @@ import (
 // YYYY/MM/DD holding rollout-<timestamp>-<session-id>.jsonl files. The scan
 // accepts a rollout file at any depth (archives flatten layouts), but
 // pruning and Locate assume the native date layout.
-
+//
+// Codex 0.164.0 introduced rollout compression: a background worker, gated
+// on the local_thread_store_compression feature (under development, off by
+// default through 0.166.0, also reachable through the app-server's
+// experimental rollout/compress request), rewrites a rollout whose file
+// mtime is at least seven days old as a zstd stream named
+// <rollout>.jsonl.zst and deletes the plain file, preserving the mtime
+// (codex-rs/rollout/src/compression.rs; verified on archives 0.166.0
+// produced: the decoded bytes are the plain rollout). The harness reads
+// either representation and prefers the plain one when both exist (a
+// resume materializes the archive back to plain .jsonl and removes the
+// archive). The scan does the same: a compressed rollout is a session like
+// any other, read through harness.OpenTranscript, and a compressed file
+// whose plain sibling exists is a counted skip, never a second session.
 // DefaultRoot implements harness.Locator.
 func (Adapter) DefaultRoot() (string, error) {
 	home, err := os.UserHomeDir()
@@ -51,6 +64,10 @@ func (a Adapter) scanDir(dir string, dateParts []string, opts harness.ScanOption
 				return false
 			}
 		case isRollout(e.Name()):
+			if isCompressedRollout(e.Name()) && fileExists(strings.TrimSuffix(path, harness.CompressedSuffix)) {
+				opts.Skip(path, "compressed copy of a plain rollout that still exists (the plain one is the session)")
+				continue
+			}
 			ref, include, err := harness.BuildRef(a, path, opts)
 			if err != nil {
 				if !yield(harness.SessionRef{}, err) {
@@ -68,8 +85,20 @@ func (a Adapter) scanDir(dir string, dateParts []string, opts harness.ScanOption
 	return true
 }
 
+// isRollout accepts a rollout in either representation: plain
+// rollout-<timestamp>-<id>.jsonl, or the zstd archive with .zst appended.
 func isRollout(name string) bool {
-	return strings.HasPrefix(name, "rollout-") && strings.HasSuffix(name, ".jsonl")
+	return strings.HasPrefix(name, "rollout-") &&
+		(strings.HasSuffix(name, ".jsonl") || isCompressedRollout(name))
+}
+
+func isCompressedRollout(name string) bool {
+	return strings.HasSuffix(name, ".jsonl"+harness.CompressedSuffix)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // prunable reports whether a YYYY/MM/DD directory chain falls entirely
@@ -104,7 +133,13 @@ func (a Adapter) Locate(root, sessionID string) (harness.SessionRef, error) {
 	if err := harness.CheckSessionID(sessionID); err != nil {
 		return harness.SessionRef{}, err
 	}
-	path, err := harness.ResolveGlob(harness.Codex, root, sessionID, filepath.Join(root, "*", "*", "*", "rollout-*-"+sessionID+".jsonl"))
+	// The plain rollout first, as the harness resolves it; the archive
+	// only when no plain file exists.
+	pattern := filepath.Join(root, "*", "*", "*", "rollout-*-"+sessionID+".jsonl")
+	path, err := harness.ResolveGlob(harness.Codex, root, sessionID, pattern)
+	if errors.Is(err, os.ErrNotExist) {
+		path, err = harness.ResolveGlob(harness.Codex, root, sessionID, pattern+harness.CompressedSuffix)
+	}
 	if err != nil {
 		return harness.SessionRef{}, err
 	}

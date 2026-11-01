@@ -68,8 +68,12 @@ type systemMessage struct {
 // provider-native reasoning blocks plus the harness's flattened
 // reasoningText/reasoningOpaque pair.
 type assistantMessage struct {
-	MessageID       string          `json:"messageId"`
-	Model           string          `json:"model"`
+	MessageID string `json:"messageId"`
+	Model     string `json:"model"`
+	// APICallID names the API call that produced the message; the
+	// session.usage_record written just before it (1.0.105+) carries the
+	// same id in usage.apiCallId, which is how usage attaches.
+	APICallID       string          `json:"apiCallId"`
 	Content         string          `json:"content"`
 	ToolRequests    []toolRequest   `json:"toolRequests"`
 	ReasoningText   string          `json:"reasoningText"`
@@ -169,9 +173,33 @@ func (b *binaryResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// usageRecord is the data of a session.usage_record (1.0.105+): one API
+// call's usage, written ahead of the assistant.message it produced.
+// inputTokens is the total prompt (the cache read, cache write, and
+// uncached remainder summed, verified on 1.0.105: a resumed turn records
+// inputTokens 25834 = cacheReadTokens 25775 + cacheWriteTokens 55 + 4),
+// the OpenAI convention the Codex adapter also preserves; the session
+// checkpoints' tokenDetails.input, by contrast, is the uncached remainder.
+type usageRecord struct {
+	Usage struct {
+		APICallID        string          `json:"apiCallId"`
+		InputTokens      int64           `json:"inputTokens"`
+		OutputTokens     int64           `json:"outputTokens"`
+		CacheReadTokens  int64           `json:"cacheReadTokens"`
+		CacheWriteTokens int64           `json:"cacheWriteTokens"`
+		ReasoningTokens  json.RawMessage `json:"reasoningTokens"`
+	} `json:"usage"`
+}
+
 type parser struct {
 	parseutil.Emitter
 	meta bool
+	// usage holds each session.usage_record's token counts by apiCallId
+	// until the assistant.message with that apiCallId takes them (one
+	// call, one message; the entry is consumed so a repeated id cannot
+	// attribute twice). A record no message claims (a helper call, an
+	// aborted turn) stays in its system event's Details only.
+	usage map[string]*session.TokenUsage
 	// pendingSkill holds a skill.invoked or skill.invoked_ref event back
 	// until the next record: when that record is the
 	// skill.context_delivered_ref whose contentId hashes the body, the
@@ -199,6 +227,7 @@ func (Adapter) Events(r io.Reader, opts harness.Options) iter.Seq2[session.Event
 			Emitter:     parseutil.Emitter{Harness: harness.Copilot, Opts: opts, Yield: yield},
 			toolNames:   make(map[string]string),
 			skillBodies: make(map[string]string),
+			usage:       make(map[string]*session.TokenUsage),
 		}
 		sc := parseutil.NewLineScanner(r)
 		for sc.Scan() {
@@ -300,6 +329,51 @@ func (p *parser) record(data []byte) bool {
 			p.skillBodies[contentHash(si.Content)] = si.Content
 		}
 		return p.holdSkill(&rec, data, si.Content)
+	case "session.usage_record":
+		var ur usageRecord
+		if err := json.Unmarshal(rec.Data, &ur); err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed session.usage_record: %v", err))
+		}
+		if ur.Usage.APICallID != "" {
+			u := &session.TokenUsage{
+				InputTokens:              ur.Usage.InputTokens,
+				OutputTokens:             ur.Usage.OutputTokens,
+				CacheReadInputTokens:     ur.Usage.CacheReadTokens,
+				CacheCreationInputTokens: ur.Usage.CacheWriteTokens,
+			}
+			if len(ur.Usage.ReasoningTokens) > 0 {
+				u.Extra = map[string]json.RawMessage{"reasoningTokens": parseutil.CloneRaw(ur.Usage.ReasoningTokens)}
+			}
+			p.usage[ur.Usage.APICallID] = u
+		}
+		return p.system(&rec, data, "")
+	case "hook.end":
+		// A hook's additionalContext output is injected into the model's
+		// context (the Claude Code hook_success precedent); it is the
+		// record's model-visible text. The rest of the record (success,
+		// the invocation id, the hook type) stays in Details.
+		var he struct {
+			Output struct {
+				AdditionalContext json.RawMessage `json:"additionalContext"`
+			} `json:"output"`
+		}
+		if err := json.Unmarshal(rec.Data, &he); err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed hook.end: %v", err))
+		}
+		var text string
+		_ = json.Unmarshal(he.Output.AdditionalContext, &text)
+		return p.system(&rec, data, text)
+	case "session.compaction_complete":
+		// The compaction summary replaces the removed messages in the
+		// model's context (Claude Code records it as a compact-summary
+		// user record); it is the record's model-visible text.
+		var cc struct {
+			SummaryContent string `json:"summaryContent"`
+		}
+		if err := json.Unmarshal(rec.Data, &cc); err != nil {
+			return p.UnknownOrFail(rec.Type, data, fmt.Sprintf("malformed session.compaction_complete: %v", err))
+		}
+		return p.system(&rec, data, cc.SummaryContent)
 	case "skill.invoked_ref":
 		// The same skill activated again with its body unchanged: the
 		// harness delivers the body again (a fresh
@@ -489,14 +563,22 @@ func (p *parser) assistantMessage(rec *envelope, data []byte) bool {
 	if am.Content != "" {
 		content = []session.ContentBlock{{Kind: session.ContentText, Text: am.Content}}
 	}
+	// Usage is the session.usage_record for this message's API call
+	// (1.0.105+), consumed here so it attributes once; nil before 1.0.105,
+	// where the format recorded no per-message usage and only the
+	// session-cumulative per-model totals in session.shutdown (preserved
+	// in that record's system event) exist.
+	var usage *session.TokenUsage
+	if am.APICallID != "" {
+		usage = p.usage[am.APICallID]
+		delete(p.usage, am.APICallID)
+	}
 	ev := base()
 	ev.Kind = session.KindAssistantMessage
 	ev.AssistantMessage = &session.AssistantMessage{
 		Model:   am.Model,
 		Content: content,
-		// Usage stays nil: the format records no per-message usage. The
-		// session-cumulative per-model totals in session.shutdown ride
-		// in that record's system event.
+		Usage:   usage,
 	}
 	return p.Emit(ev)
 }

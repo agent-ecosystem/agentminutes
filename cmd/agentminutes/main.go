@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/agent-ecosystem/agentminutes"
+	"github.com/agent-ecosystem/agentminutes/harness"
 	"github.com/spf13/cobra"
 )
 
@@ -104,7 +105,7 @@ func openInput(cmd *cobra.Command, path string) (io.Reader, func(), error) {
 	if path == "-" {
 		return cmd.InOrStdin(), func() {}, nil
 	}
-	f, err := os.Open(path)
+	f, err := harness.OpenTranscript(path)
 	if err != nil {
 		return nil, nil, err
 	}

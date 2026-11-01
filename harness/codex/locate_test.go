@@ -37,7 +37,9 @@ func writeFile(t *testing.T, path, content string, mtime time.Time) {
 //	2026/07/20/rollout-2026-07-20T10-00-00-c-1.jsonl
 //	2026/07/20/notes.txt                              skip (and pruning probe)
 //	2026/07/24/rollout-2026-07-24T10-00-00-c-2.jsonl
+//	2026/07/20/rollout-2026-07-20T10-00-00-c-1.jsonl.zst  skip: plain sibling exists
 //	2026/07/24/rollout-2026-07-24T11-00-00-c-bad.jsonl  malformed -> ScanError
+//	2026/07/25/rollout-2026-07-25T10-00-00-c-z.jsonl.zst  compressed rollout (zstd)
 //	README.md                                         skip
 func scanRoot(t *testing.T) string {
 	t.Helper()
@@ -56,6 +58,13 @@ func scanRoot(t *testing.T) string {
 		metaLine("c-2", "/tmp/exp2", "2026-07-24T10:00:00.000Z"), mt("2026-07-24T11:00:00Z"))
 	writeFile(t, filepath.Join(root, "2026", "07", "24", "rollout-2026-07-24T11-00-00-c-bad.jsonl"),
 		"not json\n", mt("2026-07-24T12:00:00Z"))
+	locatetest.WriteCompressedTranscript(t, filepath.Join(root, "2026", "07", "20", "rollout-2026-07-20T10-00-00-c-1.jsonl.zst"),
+		metaLine("c-1", "/tmp/stale", "2026-07-20T10:00:00.000Z"))
+	zst := filepath.Join(root, "2026", "07", "25", "rollout-2026-07-25T10-00-00-c-z.jsonl.zst")
+	locatetest.WriteCompressedTranscript(t, zst, metaLine("c-z", "/tmp/expz", "2026-07-25T10:00:00.000Z"))
+	if err := os.Chtimes(zst, mt("2026-07-25T11:00:00Z"), mt("2026-07-25T11:00:00Z")); err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(root, "README.md"), "x", mt("2026-07-20T11:00:00Z"))
 	return root
 }
@@ -79,8 +88,17 @@ func TestScan(t *testing.T) {
 		OnSkip: func(path, reason string) { skips[path] = reason },
 	})
 
-	if len(refs) != 2 || refs[0].Meta.SessionID != "c-1" || refs[1].Meta.SessionID != "c-2" {
-		t.Fatalf("refs = %+v, want c-1 then c-2", refs)
+	if len(refs) != 3 || refs[0].Meta.SessionID != "c-1" || refs[1].Meta.SessionID != "c-2" || refs[2].Meta.SessionID != "c-z" {
+		t.Fatalf("refs = %+v, want c-1, c-2, then c-z", refs)
+	}
+	// The compressed rollout is read through the decoder like any other
+	// session; its plain-name sibling was hidden, so c-1's identity is the
+	// plain file's, not the stale archive's.
+	if refs[2].Meta.CWD != "/tmp/expz" || !strings.HasSuffix(refs[2].Path, ".jsonl.zst") {
+		t.Errorf("c-z ref = %+v", refs[2])
+	}
+	if refs[0].Meta.CWD != "/tmp/exp" {
+		t.Errorf("c-1 read the hidden archive: %+v", refs[0].Meta)
 	}
 	if refs[0].Meta.CWD != "/tmp/exp" || refs[0].Meta.HarnessVersion != "0.144.1" {
 		t.Errorf("c-1 meta = %+v", refs[0].Meta)
@@ -97,8 +115,8 @@ func TestScan(t *testing.T) {
 		t.Errorf("error = %v, want ScanError for the malformed rollout", errs[0])
 	}
 
-	if len(skips) != 2 {
-		t.Errorf("skips = %v, want notes.txt and README.md", skips)
+	if len(skips) != 3 || !strings.Contains(skips[filepath.Join(root, "2026", "07", "20", "rollout-2026-07-20T10-00-00-c-1.jsonl.zst")], "plain rollout") {
+		t.Errorf("skips = %v, want notes.txt, README.md, and the hidden archive", skips)
 	}
 }
 
@@ -113,8 +131,8 @@ func TestScanPrunesDateDirectories(t *testing.T) {
 		Since:  since,
 		OnSkip: func(path, reason string) { skips[path] = reason },
 	})
-	if len(refs) != 1 || refs[0].Meta.SessionID != "c-2" {
-		t.Errorf("refs = %+v, want only c-2", refs)
+	if len(refs) != 2 || refs[0].Meta.SessionID != "c-2" || refs[1].Meta.SessionID != "c-z" {
+		t.Errorf("refs = %+v, want c-2 and c-z", refs)
 	}
 	if len(errs) != 1 {
 		t.Errorf("errs = %v, want the malformed-rollout error", errs)
@@ -132,6 +150,14 @@ func TestLocate(t *testing.T) {
 	}
 	if ref.Meta.SessionID != "c-2" || ref.Meta.CWD != "/tmp/exp2" {
 		t.Errorf("ref = %+v", ref)
+	}
+	// A session whose only representation is the archive resolves to it;
+	// one with both resolves to the plain file.
+	if zref, err := (Adapter{}).Locate(root, "c-z"); err != nil || zref.Meta.CWD != "/tmp/expz" || !strings.HasSuffix(zref.Path, ".jsonl.zst") {
+		t.Errorf("Locate(c-z) = %+v, %v", zref, err)
+	}
+	if pref, err := (Adapter{}).Locate(root, "c-1"); err != nil || !strings.HasSuffix(pref.Path, "c-1.jsonl") {
+		t.Errorf("Locate(c-1) = %+v, %v", pref, err)
 	}
 
 	if _, err := (Adapter{}).Locate(root, "nope"); !errors.Is(err, os.ErrNotExist) {

@@ -85,8 +85,10 @@ var knownTypes = func() map[string]bool {
 var toolKinds = map[string]session.ToolKind{
 	"run_command":          session.ToolKindExecute,
 	"write_to_file":        session.ToolKindEdit,
+	"write_file":           session.ToolKindEdit, // 1.4.12 name of write_to_file
 	"replace_file_content": session.ToolKindEdit,
 	"view_file":            session.ToolKindRead,
+	"read_file":            session.ToolKindRead, // 1.4.12 name of view_file
 	"list_dir":             session.ToolKindRead,
 	"grep_search":          session.ToolKindSearch,
 	"search_web":           session.ToolKindFetch,

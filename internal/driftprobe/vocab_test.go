@@ -145,11 +145,15 @@ func TestScanFixturesClean(t *testing.T) {
 	fixtures := map[string]string{
 		"antigravity":                 filepath.Join("..", "..", "harness", "antigravity", "testdata", "transcript_full.jsonl"),
 		"antigravity-probes":          filepath.Join("..", "..", "harness", "antigravity", "testdata", "probes.jsonl"),
+		"antigravity-subagent-child":  filepath.Join("..", "..", "harness", "antigravity", "testdata", "subagent_child.jsonl"),
+		"antigravity-usage":           filepath.Join("..", "..", "harness", "antigravity", "testdata", "usage.jsonl"),
 		"claude-code":                 filepath.Join("..", "..", "harness", "claudecode", "testdata", "session.jsonl"),
 		"claude-code-search-fallback": filepath.Join("..", "..", "harness", "claudecode", "testdata", "search_fallback.jsonl"),
+		"claude-code-requests":        filepath.Join("..", "..", "harness", "claudecode", "testdata", "requests.jsonl"),
 		"claude-code-tools":           filepath.Join("..", "..", "harness", "claudecode", "testdata", "tools.jsonl"),
 		"codex":                       filepath.Join("..", "..", "harness", "codex", "testdata", "rollout.jsonl"),
 		"codex-item-stream":           filepath.Join("..", "..", "harness", "codex", "testdata", "item_stream.jsonl"),
+		"codex-additional-tools":      filepath.Join("..", "..", "harness", "codex", "testdata", "additional_tools.jsonl"),
 		"codex-probes":                filepath.Join("..", "..", "harness", "codex", "testdata", "probes.jsonl"),
 		"copilot":                     filepath.Join("..", "..", "harness", "copilot", "testdata", "events.jsonl"),
 		"copilot-subagents":           filepath.Join("..", "..", "harness", "copilot", "testdata", "subagents.jsonl"),
@@ -157,6 +161,7 @@ func TestScanFixturesClean(t *testing.T) {
 		"copilot-errors":              filepath.Join("..", "..", "harness", "copilot", "testdata", "errors.jsonl"),
 		"copilot-skills":              filepath.Join("..", "..", "harness", "copilot", "testdata", "skills.jsonl"),
 		"copilot-subagents-advanced":  filepath.Join("..", "..", "harness", "copilot", "testdata", "subagents_advanced.jsonl"),
+		"copilot-usage":               filepath.Join("..", "..", "harness", "copilot", "testdata", "usage.jsonl"),
 	}
 	for name, path := range fixtures {
 		data, err := os.ReadFile(path)

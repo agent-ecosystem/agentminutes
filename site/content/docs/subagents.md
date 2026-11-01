@@ -130,10 +130,10 @@ subagent's own subagents are gathered into the same task.
 
 Two things a task summary does not do. It does not change what a plain
 `stats` on one file reports, because conversation scope is a
-legitimate question, and it does not invent usage: a harness that
-records none (Antigravity) or none per message (Copilot CLI) has no
-`totals` at task scope either, so absence stays distinguishable from
-zero. `--root` points discovery at a non-default transcript root, and
+legitimate question, and it does not invent usage: a transcript that
+records none (Antigravity before agy 1.4.12) or none per message
+(Copilot CLI before 1.0.105) has no `totals` at task scope either, so
+absence stays distinguishable from zero. `--root` points discovery at a non-default transcript root, and
 `--promote` applies to every transcript in the task.
 
 In Go, `agentminutes.Task` returns the same summary as a `TaskStats`

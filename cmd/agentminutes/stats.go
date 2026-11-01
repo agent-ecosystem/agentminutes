@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/agent-ecosystem/agentminutes"
 	"github.com/agent-ecosystem/agentminutes/harness"
@@ -98,7 +97,7 @@ func detectFile(id, path string) (harness.Adapter, error) {
 	if id != "" && id != "auto" {
 		return agentminutes.AdapterFor(harness.ID(id))
 	}
-	f, err := os.Open(path)
+	f, err := harness.OpenTranscript(path)
 	if err != nil {
 		return nil, err
 	}

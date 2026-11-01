@@ -33,23 +33,40 @@ var conversationTypes = map[string]bool{
 	"attachment": true,
 }
 
+// requestTypes are the API request log records (2.1.309+), each a system
+// event: api-request-shape (the request's static part, keyed by shapeHash:
+// the system blocks and the tool definitions), api-request-blob (one
+// message of the request's tail, keyed by its content hash; the wire form
+// of the user turn with its reminders, of an assistant message, or of the
+// dynamic system block the system-role reminders fold into), and
+// api-request (the request itself: params, the shape hash, the kept
+// prefix length and the tail's blob hashes, cache control). See
+// parser.apiRequest.
+var requestTypes = map[string]bool{
+	"api-request":       true,
+	"api-request-blob":  true,
+	"api-request-shape": true,
+}
+
 // skipTypes are harness/UI bookkeeping records with no model-visible
 // content. They are excluded from the event stream and reported via
 // Options.OnSkip, never silently dropped. Not listed: "cost-state", the
 // session cost tracker persisted at exit (2.1.267+), which carries usage
 // telemetry and becomes a system event instead (see parser.costState).
 var skipTypes = map[string]bool{
-	"mode":                  true,
-	"permission-mode":       true,
-	"ai-title":              true,
-	"atis-latch":            true,
-	"bridge-session":        true,
-	"frame-link":            true,
-	"last-prompt":           true,
-	"pr-link":               true,
-	"file-history-snapshot": true,
-	"file-history-delta":    true,
-	"queue-operation":       true,
+	"artifact-autoreact-ledger": true,
+	"artifact-comment-monitor":  true,
+	"mode":                      true,
+	"permission-mode":           true,
+	"ai-title":                  true,
+	"atis-latch":                true,
+	"bridge-session":            true,
+	"frame-link":                true,
+	"last-prompt":               true,
+	"pr-link":                   true,
+	"file-history-snapshot":     true,
+	"file-history-delta":        true,
+	"queue-operation":           true,
 }
 
 // toolKinds maps Claude Code's native tool names onto ACP tool kinds.
@@ -110,10 +127,10 @@ func (Adapter) Sniff(header []byte) harness.Confidence {
 	switch {
 	case conversationTypes[probe.Type] && probe.SessionID != "" && probe.UUID != "":
 		return harness.Certain
-	case skipTypes[probe.Type] && (probe.SessionID != "" ||
+	case (skipTypes[probe.Type] || requestTypes[probe.Type]) && (probe.SessionID != "" ||
 		probe.Type == "file-history-snapshot" || probe.Type == "file-history-delta"):
 		return harness.Certain
-	case conversationTypes[probe.Type] || skipTypes[probe.Type] || legacyTypes[probe.Type]:
+	case conversationTypes[probe.Type] || skipTypes[probe.Type] || requestTypes[probe.Type] || legacyTypes[probe.Type]:
 		return harness.Possible
 	case probe.Type != "" && (probe.SessionID != "" ||
 		bytes.Contains(line, []byte(`"parentUuid"`)) ||
